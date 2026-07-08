@@ -1,0 +1,15 @@
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Backend Laravel
+backend/vendor/
+backend/.env
+backend/storage/logs/*.log
+
+# General
+.DS_Store
+Thumbs.db
+.vscode/
