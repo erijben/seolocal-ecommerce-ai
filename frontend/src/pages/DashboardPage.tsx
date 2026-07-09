@@ -43,7 +43,13 @@ export default function DashboardPage() {
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>(
     []
   );
-
+const statusLabels: Record<string, string> = {
+  pending: "En attente",
+  confirmed: "Confirmée",
+  shipped: "Expédiée",
+  delivered: "Livrée",
+  cancelled: "Annulée",
+};
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -182,7 +188,7 @@ export default function DashboardPage() {
                 <XAxis dataKey="period" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="total_sales" name="Ventes" />
+     <Bar dataKey="total_sales" name="Ventes" fill="#4f46e5" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -200,11 +206,11 @@ export default function DashboardPage() {
 
             {ordersByStatus.map((item) => (
               <div
-                key={item.status}
+                key={statusLabels[item.status] ?? item.status}
                 className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
               >
                 <span className="capitalize text-slate-600">
-                  {item.status}
+                  {statusLabels[item.status] ?? item.status}
                 </span>
                 <span className="font-bold text-slate-900">{item.count}</span>
               </div>

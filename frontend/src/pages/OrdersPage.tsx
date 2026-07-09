@@ -28,6 +28,7 @@ import type {
 
 const emptyForm: OrderFormData = {
   customer_id: "",
+  order_date: new Date().toISOString().slice(0, 16),
   items: [
     {
       product_id: "",
@@ -144,9 +145,18 @@ export default function OrdersPage() {
     }));
   }
 
-  function resetForm() {
-    setFormData(emptyForm);
-  }
+function resetForm() {
+  setFormData({
+    customer_id: "",
+    order_date: new Date().toISOString().slice(0, 16),
+    items: [
+      {
+        product_id: "",
+        quantity: "1",
+      },
+    ],
+  });
+}
 
   const estimatedTotal = useMemo(() => {
     return formData.items.reduce((total, item) => {
@@ -310,7 +320,23 @@ export default function OrdersPage() {
             ))}
           </select>
         </div>
+<div className="mb-5">
+  <label className="mb-2 block text-sm font-medium text-slate-700">
+    Date de commande
+  </label>
 
+  <input
+    type="datetime-local"
+    value={formData.order_date}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        order_date: e.target.value,
+      }))
+    }
+    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-500"
+  />
+</div>
         <div className="space-y-4">
           {formData.items.map((item, index) => {
             const selectedProduct = products.find(

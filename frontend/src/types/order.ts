@@ -38,5 +38,6 @@ export type OrderFormItem = {
 
 export type OrderFormData = {
   customer_id: string;
+  order_date: string;
   items: OrderFormItem[];
 };

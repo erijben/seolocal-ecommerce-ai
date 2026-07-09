@@ -45,12 +45,13 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'customer_id' => ['required', 'exists:customers,id'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-        ]);
+       $validated = $request->validate([
+    'customer_id' => ['required', 'exists:customers,id'],
+    'order_date' => ['nullable', 'date'],
+    'items' => ['required', 'array', 'min:1'],
+    'items.*.product_id' => ['required', 'exists:products,id'],
+    'items.*.quantity' => ['required', 'integer', 'min:1'],
+]);
 
         $order = $this->orderService->createOrder($validated);
 

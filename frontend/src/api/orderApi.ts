@@ -30,6 +30,7 @@ function buildQuery(filters: OrderFilters) {
 function prepareOrderPayload(data: OrderFormData) {
   return {
     customer_id: Number(data.customer_id),
+    order_date: data.order_date || null,
     items: data.items.map((item) => ({
       product_id: Number(item.product_id),
       quantity: Number(item.quantity),

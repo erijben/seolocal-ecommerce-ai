@@ -63,13 +63,13 @@ class OrderService
                 $totalAmount += $subtotal;
             }
 
-            $order = Order::create([
-                'customer_id' => $data['customer_id'],
-                'order_number' => $this->generateOrderNumber(),
-                'status' => 'pending',
-                'total_amount' => $totalAmount,
-                'order_date' => now(),
-            ]);
+          $order = Order::create([
+    'customer_id' => $data['customer_id'],
+    'order_number' => $this->generateOrderNumber(),
+    'status' => 'pending',
+    'total_amount' => $totalAmount,
+    'order_date' => $data['order_date'] ?? now(),
+]);
 
             foreach ($preparedItems as $preparedItem) {
                 OrderItem::create([
