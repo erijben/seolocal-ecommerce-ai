@@ -7,7 +7,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\DashboardController;
-
+use App\Http\Controllers\Api\AiController;
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -36,4 +36,9 @@ Route::get('/dashboard/top-products', [DashboardController::class, 'topProducts'
 Route::get('/dashboard/top-customers', [DashboardController::class, 'topCustomers']);
 Route::get('/dashboard/orders-by-status', [DashboardController::class, 'ordersByStatus']);
 Route::get('/dashboard/low-stock-products', [DashboardController::class, 'lowStockProducts']);
+
+Route::post('/ai/generate-report', [AiController::class, 'generateReport']);
+Route::post('/ai/ask', [AiController::class, 'ask']);
+Route::get('/ai/reports', [AiController::class, 'reports']);
+Route::get('/ai/questions', [AiController::class, 'questions']);
 });

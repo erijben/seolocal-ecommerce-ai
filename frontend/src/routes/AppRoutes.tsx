@@ -9,6 +9,8 @@ import OrdersPage from "../pages/OrdersPage";
 import OrderDetailsPage from "../pages/OrderDetailsPage";
 import AdminLayout from "../components/layout/AdminLayout";
 import CustomerDetailsPage from "../pages/CustomerDetailsPage";
+import AiAssistantPage from "../pages/AiAssistantPage";
+import AiReportsPage from "../pages/AiReportsPage";
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
@@ -48,6 +50,9 @@ export default function AppRoutes() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:orderId" element={<OrderDetailsPage />} />
         <Route path="customers/:customerId" element={<CustomerDetailsPage />} />
+
+        <Route path="ai-assistant" element={<AiAssistantPage />} />
+<Route path="ai-reports" element={<AiReportsPage />} />
       </Route>
     </Routes>
   );

@@ -1,13 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  BarChart3,
+  Bot,
   Boxes,
+  FileText,
   LayoutDashboard,
   ShoppingCart,
   Tags,
   Users,
   X,
 } from "lucide-react";
+
 
 type SidebarProps = {
   isOpen: boolean;
@@ -19,7 +21,9 @@ const links = [
   { to: "/categories", label: "Catégories", icon: Tags },
   { to: "/products", label: "Produits", icon: Boxes },
   { to: "/customers", label: "Clients", icon: Users },
-  { to: "/orders", label: "Commandes", icon: ShoppingCart }
+  { to: "/orders", label: "Commandes", icon: ShoppingCart },
+  { to: "/ai-assistant", label: "Assistant IA", icon: Bot },
+{ to: "/ai-reports", label: "Rapports IA", icon: FileText },
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
