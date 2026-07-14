@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Bot, FileText, Sparkles } from "lucide-react";
 import { generateAiReport, getAiReports } from "../api/aiApi";
 import type { AiPeriod, AiReport, AiReportType } from "../types/ai";
-
+import { cleanAiResponse, isDemoAiResponse } from "../utils/aiResponse";
 const reportTypeLabels: Record<AiReportType, string> = {
   sales_report: "Rapport de ventes",
   stock_recommendation: "Recommandations de stock",
@@ -189,9 +189,15 @@ export default function AiReportsPage() {
                 </p>
               </div>
 
-              <div className="whitespace-pre-line rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700">
-                {selectedReport.content}
-              </div>
+             {isDemoAiResponse(selectedReport.content) && (
+  <div className="mb-3 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+    Mode démo intelligent
+  </div>
+)}
+
+<div className="whitespace-pre-line rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700">
+  {cleanAiResponse(selectedReport.content)}
+</div>
             </div>
           )}
         </div>

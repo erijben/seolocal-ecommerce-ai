@@ -10,31 +10,55 @@ class AiService
     {
     }
 
-    public function generateReport(string $type, string $period = 'monthly'): string
-    {
-        $businessData = $this->getBusinessData($period);
+  public function generateReport(string $type, string $period = 'monthly'): string
+{
+    $businessData = $this->getBusinessData($period);
 
-        if (! $this->hasOpenAiKey()) {
-            return $this->generateDemoReport($type, $period, $businessData);
-        }
-
-        $prompt = $this->buildReportPrompt($type, $period, $businessData);
-
-        return $this->askAi($prompt);
+    if (! $this->hasOpenAiKey()) {
+        return $this->generateDemoReport($type, $period, $businessData);
     }
 
-    public function answerQuestion(string $question): string
-    {
-        $businessData = $this->getBusinessData('monthly');
+    $prompt = $this->buildReportPrompt($type, $period, $businessData);
 
-        if (! $this->hasOpenAiKey()) {
-            return $this->generateDemoAnswer($question, $businessData);
-        }
+    $aiResponse = $this->askAi($prompt);
 
-        $prompt = $this->buildQuestionPrompt($question, $businessData);
+    if ($aiResponse === null) {
+        return "## Mode démo intelligent activé
 
-        return $this->askAi($prompt);
+OpenAI n'est pas disponible actuellement ou le quota API est insuffisant.
+
+Le système utilise donc l'analyse locale basée sur les vraies données du dashboard.
+
+" . $this->generateDemoReport($type, $period, $businessData);
     }
+
+    return $aiResponse;
+}
+
+ public function answerQuestion(string $question): string
+{
+    $businessData = $this->getBusinessData('monthly');
+
+    if (! $this->hasOpenAiKey()) {
+        return $this->generateDemoAnswer($question, $businessData);
+    }
+
+    $prompt = $this->buildQuestionPrompt($question, $businessData);
+
+    $aiResponse = $this->askAi($prompt);
+
+    if ($aiResponse === null) {
+        return "## Mode démo intelligent activé
+
+OpenAI n'est pas disponible actuellement ou le quota API est insuffisant.
+
+Le système utilise donc l'analyse locale basée sur les vraies données du dashboard.
+
+" . $this->generateDemoAnswer($question, $businessData);
+    }
+
+    return $aiResponse;
+}
 
     private function getBusinessData(string $period): array
     {
@@ -103,29 +127,29 @@ Réponds en français avec :
 ";
     }
 
-    private function askAi(string $prompt): string
-    {
-        $apiKey = config('services.openai.key');
+    private function askAi(string $prompt): ?string
+{
+    $apiKey = config('services.openai.key');
 
-        if (! $apiKey) {
-            return "Aucune clé OpenAI n'est configurée.";
-        }
-
-        $response = Http::withToken($apiKey)
-            ->timeout(60)
-            ->post('https://api.openai.com/v1/responses', [
-                'model' => config('services.openai.model', 'gpt-4.1-mini'),
-                'input' => $prompt,
-            ]);
-
-        if (! $response->successful()) {
-            return "Erreur lors de l'appel à l'API IA : " . $response->body();
-        }
-
-        $json = $response->json();
-
-        return $this->extractTextFromOpenAiResponse($json);
+    if (! $apiKey) {
+        return null;
     }
+
+    $response = Http::withToken($apiKey)
+        ->timeout(60)
+        ->post('https://api.openai.com/v1/responses', [
+            'model' => config('services.openai.model', 'gpt-4.1-mini'),
+            'input' => $prompt,
+        ]);
+
+    if (! $response->successful()) {
+        return null;
+    }
+
+    $json = $response->json();
+
+    return $this->extractTextFromOpenAiResponse($json);
+}
 
     private function extractTextFromOpenAiResponse(array $json): string
     {

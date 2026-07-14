@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Bot, MessageCircle, Send } from "lucide-react";
 import { askAi, getAiQuestions } from "../api/aiApi";
 import type { AiQuestion } from "../types/ai";
-
+import { cleanAiResponse, isDemoAiResponse } from "../utils/aiResponse";
 const suggestedQuestions = [
   "Quels produits dois-je réapprovisionner ?",
   "Quels sont mes meilleurs clients ?",
@@ -174,9 +174,15 @@ export default function AiAssistantPage() {
                   </div>
                 </div>
 
-                <div className="whitespace-pre-line rounded-xl bg-white p-4 text-sm leading-7 text-slate-700">
-                  {item.answer}
-                </div>
+           {isDemoAiResponse(item.answer) && (
+  <div className="mb-3 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+    Mode démo intelligent
+  </div>
+)}
+
+<div className="whitespace-pre-line rounded-xl bg-white p-4 text-sm leading-7 text-slate-700">
+  {cleanAiResponse(item.answer)}
+</div>
               </div>
             ))}
           </div>
