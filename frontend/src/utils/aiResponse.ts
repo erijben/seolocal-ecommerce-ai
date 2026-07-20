@@ -1,4 +1,5 @@
-const DEMO_MARKER = "## Mode démo intelligent activé";
+const DEMO_BLOCK_REGEX =
+  /## Mode démo intelligent activé[\s\S]*?Le système utilise donc l'analyse locale basée sur les vraies données du dashboard\.\s*/g;
 
 export function isDemoAiResponse(text?: string | null) {
   if (!text) {
@@ -6,9 +7,8 @@ export function isDemoAiResponse(text?: string | null) {
   }
 
   return (
-    text.includes(DEMO_MARKER) ||
-    text.includes("Réponse IA démo") ||
-    text.includes("Mode démo intelligent")
+    text.includes("Mode démo intelligent activé") ||
+    text.includes("Réponse IA démo")
   );
 }
 
@@ -17,5 +17,15 @@ export function cleanAiResponse(text?: string | null) {
     return "";
   }
 
-  return text.replace(DEMO_MARKER, "").trim();
+  return text
+    .replace(DEMO_BLOCK_REGEX, "")
+    .replace(/## Mode démo intelligent activé/g, "")
+    .replace(/OpenAI n'est pas disponible actuellement ou le quota API est insuffisant\./g, "")
+    .replace(/Le système utilise donc l'analyse locale basée sur les vraies données du dashboard\./g, "")
+    .replace(/## Réponse IA démo\s*—/g, "Réponse de l’assistant IA —")
+    .replace(/## Réponse IA démo\s*-/g, "Réponse de l’assistant IA —")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^\s*-\s+/gm, "• ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }

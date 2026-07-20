@@ -1,0 +1,505 @@
+//cette page est comme un tableau de bord ML.
+//utile quand l’admin veut voir les chiffres précis.
+
+/*Elle sert à répondre à :
+
+Quels sont les résultats du modèle ?
+Quels produits sont critiques ?
+Quelle quantité recommander ?
+Quelle est la tendance ?
+Quel est le score R² */
+
+//La page Stock Forecast aide à surveiller
+
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Boxes,
+  PackageCheck,
+  RefreshCcw,
+  TrendingUp,
+} from "lucide-react";
+import { getAiStockForecast } from "../api/aiApi";
+import type {
+  AiStockForecast,
+  AiStockForecastProduct,
+  StockRiskLevel,
+} from "../types/ai";
+
+export default function AiStockForecastPage() {
+  const [forecast, setForecast] = useState<AiStockForecast | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadForecast() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getAiStockForecast();
+      setForecast(data);
+    } catch {
+      setError("Impossible de charger les prévisions de stock.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadForecast();
+  }, []);
+
+  const criticalProducts = useMemo(() => {
+    return forecast?.products.filter((item) => item.risk_level === "critical") ?? [];
+  }, [forecast]);
+
+  const topRiskProducts = useMemo(() => {
+    return forecast?.products.slice(0, 5) ?? [];
+  }, [forecast]);
+
+  function formatDate(value: string) {
+    return new Date(value).toLocaleDateString("fr-FR");
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+        Chargement des prévisions de stock...
+      </div>
+    );
+  }
+
+  if (error || !forecast) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+        {error || "Aucune donnée de prévision disponible."}
+      </div>
+    );
+  }
+
+  const summary = forecast.summary;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">
+            AI Stock Forecasting
+          </h1>
+          <p className="mt-1 text-slate-500">
+            Analyse prédictive du risque de rupture, de la demande future et des
+            quantités recommandées.
+          </p>
+          <p className="mt-2 text-xs font-medium text-slate-400">
+            Fenêtre d’analyse : {forecast.analysis_window_days} jours — du{" "}
+            {formatDate(forecast.analysis_start_date)} au{" "}
+            {formatDate(forecast.analysis_end_date)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={loadForecast}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          <RefreshCcw size={18} />
+          Actualiser
+        </button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ForecastCard
+          title="Produits analysés"
+          value={summary.total_products_analyzed}
+          description="Produits actifs inclus dans la prévision"
+          icon={<Boxes size={22} />}
+        />
+
+        <ForecastCard
+          title="Critiques"
+          value={summary.critical_count}
+          description="Stock inférieur ou égal au seuil"
+          icon={<AlertTriangle size={22} />}
+          variant="critical"
+        />
+
+        <ForecastCard
+          title="Risque élevé"
+          value={summary.high_count}
+          description="Rupture possible à court terme"
+          icon={<Activity size={22} />}
+          variant="high"
+        />
+
+        <ForecastCard
+          title="Stock stable"
+          value={summary.low_count}
+          description="Aucune action urgente"
+          icon={<PackageCheck size={22} />}
+          variant="low"
+        />
+      </div>
+
+
+<div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
+  <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+    <div>
+      <h2 className="text-lg font-bold text-indigo-900">
+        Moteur prédictif ML
+      </h2>
+      <p className="mt-1 text-sm text-indigo-700">
+        Les prévisions sont générées à partir des ventes journalières envoyées
+        par Laravel au microservice Python.
+      </p>
+    </div>
+
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rounded-xl bg-white px-4 py-3">
+        <p className="text-xs font-medium text-slate-500">Provider</p>
+        <p className="mt-1 font-bold text-slate-900">
+          {forecast.provider ?? "laravel_baseline"}
+        </p>
+      </div>
+
+      <div className="rounded-xl bg-white px-4 py-3">
+        <p className="text-xs font-medium text-slate-500">Modèle</p>
+        <p className="mt-1 font-bold text-slate-900">
+          {forecast.model_version ?? "baseline"}
+        </p>
+      </div>
+
+      <div className="rounded-xl bg-white px-4 py-3">
+        <p className="text-xs font-medium text-slate-500">Horizon</p>
+        <p className="mt-1 font-bold text-slate-900">
+          {forecast.forecast_horizon_days ?? 30} jours
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <TrendingUp size={22} />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Produits à risque prioritaire
+              </h2>
+              <p className="text-sm text-slate-500">
+                Classement basé sur le stock actuel, le seuil d’alerte et la
+                vitesse de vente.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {topRiskProducts.map((product) => (
+              <RiskProductCard key={product.product_id} product={product} />
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <BarChart3 size={22} />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Résumé décisionnel
+              </h2>
+              <p className="text-sm text-slate-500">
+                Lecture rapide des actions à mener.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <DecisionItem
+              label="Produits à réapprovisionner"
+              value={criticalProducts.length}
+            />
+            <DecisionItem
+              label="Quantité totale recommandée"
+              value={criticalProducts.reduce(
+                (total, product) =>
+                  total + product.recommended_restock_quantity,
+                0
+              )}
+            />
+            <DecisionItem
+              label="Produit le plus urgent"
+              value={criticalProducts[0]?.product_name ?? "Aucun"}
+            />
+          </div>
+
+          <div className="mt-5 rounded-2xl bg-indigo-50 p-4 text-sm leading-6 text-indigo-800">
+            Le système utilise une baseline prédictive basée sur la vitesse
+            moyenne de vente. Cette approche peut ensuite évoluer vers un modèle
+            ML plus avancé.
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-4 text-lg font-bold text-slate-900">
+          Détail des prévisions par produit
+        </h2>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-3 pr-4 font-semibold">Produit</th>
+                <th className="py-3 pr-4 font-semibold">Catégorie</th>
+                <th className="py-3 pr-4 font-semibold">Stock</th>
+                <th className="py-3 pr-4 font-semibold">Seuil</th>
+                <th className="py-3 pr-4 font-semibold">Vendues</th>
+                <th className="py-3 pr-4 font-semibold">Demande 30j</th>
+                <th className="py-3 pr-4 font-semibold">Jours rupture</th>
+                <th className="py-3 pr-4 font-semibold">Risque</th>
+                <th className="py-3 pr-4 font-semibold">Réassort</th>
+                <th className="py-3 font-semibold">Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {forecast.products.map((product) => (
+                <tr
+                  key={product.product_id}
+                  className="border-b border-slate-100 text-slate-700"
+                >
+                  <td className="py-4 pr-4 font-semibold text-slate-900">
+                    {product.product_name}
+                  </td>
+                  <td className="py-4 pr-4">{product.category ?? "-"}</td>
+                  <td className="py-4 pr-4">{product.current_stock}</td>
+                  <td className="py-4 pr-4">
+                    {product.stock_alert_threshold}
+                  </td>
+                  <td className="py-4 pr-4">{product.total_sold}</td>
+                  <td className="py-4 pr-4">
+                    {product.projected_demand_30_days}
+                  </td>
+                  <td className="py-4 pr-4">
+                    {product.days_until_stockout === null
+                      ? "N/A"
+                      : `${product.days_until_stockout} j`}
+                  </td>
+                  <td className="py-4 pr-4">
+                    <span className={getRiskBadgeClass(product.risk_level)}>
+                      {getRiskLabel(product.risk_level)}
+                    </span>
+                  </td>
+                  <td className="py-4 pr-4 font-semibold text-indigo-700">
+                    {product.recommended_restock_quantity}
+                  </td>
+                  <td className="py-4">{product.recommended_action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ForecastCardProps = {
+  title: string;
+  value: number;
+  description: string;
+  icon: ReactNode;
+  variant?: StockRiskLevel;
+};
+
+function ForecastCard({
+  title,
+  value,
+  description,
+  icon,
+  variant,
+}: ForecastCardProps) {
+  const colorClass =
+    variant === "critical"
+      ? "bg-red-50 text-red-600"
+      : variant === "high"
+      ? "bg-orange-50 text-orange-600"
+      : variant === "medium"
+      ? "bg-amber-50 text-amber-600"
+      : variant === "low"
+      ? "bg-green-50 text-green-600"
+      : "bg-indigo-50 text-indigo-600";
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+        </div>
+
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${colorClass}`}
+        >
+          {icon}
+        </div>
+      </div>
+
+      <p className="text-sm text-slate-500">{description}</p>
+    </div>
+  );
+}
+
+function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-bold text-slate-900">
+              {product.product_name}
+            </h3>
+            <span className={getRiskBadgeClass(product.risk_level)}>
+              {getRiskLabel(product.risk_level)}
+            </span>
+          </div>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {product.category} — stock actuel : {product.current_stock}, seuil :{" "}
+            {product.stock_alert_threshold}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-indigo-700">
+          Réassort recommandé : {product.recommended_restock_quantity}
+        </div>
+      </div>
+
+     <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+  <MiniMetric label="Vendues" value={product.total_sold} />
+  <MiniMetric
+    label="Demande estimée 30j"
+    value={product.projected_demand_30_days}
+  />
+  <MiniMetric
+    label="Jours avant rupture"
+    value={
+      product.days_until_stockout === null
+        ? "N/A"
+        : `${product.days_until_stockout} j`
+    }
+  />
+  <MiniMetric
+    label="Modèle ML"
+    value={getMlModelLabel(product.ml_model)}
+  />
+  <MiniMetric
+    label="Confiance"
+    value={getConfidenceLabel(product.ml_confidence)}
+  />
+  <MiniMetric
+    label="Tendance"
+    value={getTrendLabel(product.trend)}
+  />
+</div>
+
+{product.r2_score !== undefined && product.r2_score !== null && (
+  <div className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-600">
+    Score R² :{" "}
+    <span className="font-semibold text-slate-900">
+      {product.r2_score}
+    </span>
+    <span className="ml-2 text-xs text-slate-400">
+      Plus le score est proche de 1, plus le modèle explique bien les données
+      historiques.
+    </span>
+  </div>
+)}
+
+      <p className="mt-4 rounded-xl bg-white p-3 text-sm text-slate-600">
+        {product.recommended_action}
+      </p>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl bg-white p-3">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-1 font-bold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function DecisionItem({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-1 text-lg font-bold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function getRiskLabel(risk: StockRiskLevel) {
+  const labels: Record<StockRiskLevel, string> = {
+    critical: "Critique",
+    high: "Élevé",
+    medium: "Moyen",
+    low: "Faible",
+  };
+
+  return labels[risk];
+}
+
+function getRiskBadgeClass(risk: StockRiskLevel) {
+  const classes: Record<StockRiskLevel, string> = {
+    critical:
+      "rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700",
+    high: "rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700",
+    medium:
+      "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700",
+    low: "rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700",
+  };
+
+  return classes[risk];
+}
+
+
+function getMlModelLabel(model?: string) {
+  const labels: Record<string, string> = {
+    linear_regression: "Régression linéaire",
+    moving_average_fallback: "Moyenne mobile",
+  };
+
+  return labels[model ?? ""] ?? "N/A";
+}
+
+function getConfidenceLabel(confidence?: string) {
+  const labels: Record<string, string> = {
+    high: "Élevée",
+    medium: "Moyenne",
+    low: "Faible",
+  };
+
+  return labels[confidence ?? ""] ?? "N/A";
+}
+
+function getTrendLabel(trend?: string) {
+  const labels: Record<string, string> = {
+    increasing: "Hausse",
+    decreasing: "Baisse",
+    stable: "Stable",
+  };
+
+  return labels[trend ?? ""] ?? "N/A";
+}

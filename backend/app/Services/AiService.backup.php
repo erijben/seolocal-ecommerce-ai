@@ -122,7 +122,7 @@ Structure recommandée :
 private function buildFinalAnswerPrompt(string $question, array $route, array $toolResults): string
 {
     $context = $this->compactToolResultsForPrompt($toolResults);
-//Ça va rendre les réponses ML plus propres.
+
     return trim("
 Tu es l'Assistant IA d'une plateforme e-commerce.
 
@@ -134,14 +134,7 @@ Règles importantes :
 - Si le contexte ne contient pas la réponse, dis simplement que l'information n'est pas disponible dans les données internes.
 - Ne parle jamais de fallback, d'erreur technique, d'Ollama, d'OpenAI ou de provider.
 - Réponds comme un assistant métier, pas comme un développeur.
-- Ne commence pas par \"Voici la réponse\".
-- Ne termine pas par \"Réponse concise et professionnelle\".
-- Donne une seule réponse structurée.
-- Ne confonds jamais stock actuel, seuil d’alerte, demande prévue et quantité recommandée.
-- Pour les prévisions de stock, conserve les libellés fournis par les outils.
-- Pour une question de réapprovisionnement, classe les produits par niveau de risque et quantité recommandée.
-- Ne transforme pas une demande prévue en stock actuel.
-- Réponds en 4 points maximum si la question demande un résumé.
+
 Question utilisateur :
 {$question}
 
@@ -158,14 +151,14 @@ private function compactToolResultsForPrompt(array $toolResults): string
     $parts = [];
 
     $chunks = collect(data_get($toolResults, 'knowledge_base.chunks', []))
-        ->take(2)
+        ->take(3)
         ->map(function ($chunk) {
             $title = data_get($chunk, 'document_title', 'Document interne');
             $content = $this->cleanTextForPrompt(data_get($chunk, 'content', ''));
 
-            if (mb_strlen($content) > 400) {
-    $content = mb_substr($content, 0, 400) . '...';
-}
+            if (mb_strlen($content) > 500) {
+                $content = mb_substr($content, 0, 500) . '...';
+            }
 
             return "Source : {$title}\nExtrait : {$content}";
         })
@@ -234,9 +227,9 @@ Donne des recommandations concrètes.
             || ! empty(data_get($toolResults, 'business_snapshot.stats'));
     }
 
-private function safeNoAnswer(array $toolResults): string
+ private function safeNoAnswer(array $toolResults): string
 {
-    return "Le moteur IA local n’a pas répondu dans le délai disponible. Merci de réessayer dans quelques secondes.";
+    return "Le moteur IA n’a pas généré de réponse. Vérifiez qu’Ollama répond correctement dans le délai configuré.";
 }
 
 
@@ -422,8 +415,6 @@ private function cleanTextForPrompt(?string $text): string
                 'Mode démo intelligent activé',
                 'fallback Laravel',
                 'OpenAI n\'est pas disponible',
-                'Réponse concise et professionnelle.',
-'Voici la réponse :',
             ],
             [
                 'Réponse de l’assistant IA',
@@ -431,8 +422,6 @@ private function cleanTextForPrompt(?string $text): string
                 '',
                 'moteur IA secondaire',
                 '',
-                '',
-'',
             ],
             $answer
         );

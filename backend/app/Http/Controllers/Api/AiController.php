@@ -7,7 +7,8 @@ use App\Models\AiQuestion;
 use App\Models\AiReport;
 use App\Services\AiService;
 use Illuminate\Http\Request;
-
+use App\Services\Ai\AiAgentAnalyticsService;
+use App\Services\Ai\AiStockForecastService;
 class AiController extends Controller
 {
     public function __construct(private AiService $aiService)
@@ -45,27 +46,36 @@ class AiController extends Controller
             'data' => $report,
         ], 201);
     }
+public function agentInsights(AiAgentAnalyticsService $analyticsService)
+{
+    return response()->json([
+        'success' => true,
+        'data' => $analyticsService->getInsights(),
+    ]);
+}
+public function ask(Request $request)
+{
+    $validated = $request->validate([
+        'question' => ['required', 'string', 'min:5'],
+    ]);
 
-    public function ask(Request $request)
-    {
-        $validated = $request->validate([
-            'question' => ['required', 'string', 'min:5'],
-        ]);
+    $result = $this->aiService->answerQuestion($validated['question']);
 
-        $answer = $this->aiService->answerQuestion($validated['question']);
+    $aiQuestion = AiQuestion::create([
+        'user_id' => $request->user()->id,
+        'question' => $validated['question'],
+        'intent' => $result['intent'],
+        'provider' => $result['provider'],
+        'used_data' => $result['used_data'],
+        'answer' => $result['answer'],
+    ]);
 
-        $aiQuestion = AiQuestion::create([
-            'user_id' => $request->user()->id,
-            'question' => $validated['question'],
-            'answer' => $answer,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Réponse IA générée avec succès.',
-            'data' => $aiQuestion,
-        ], 201);
-    }
+    return response()->json([
+        'success' => true,
+        'message' => 'Réponse IA générée avec succès.',
+        'data' => $aiQuestion,
+    ], 201);
+}
 
     public function reports()
     {
@@ -76,6 +86,14 @@ class AiController extends Controller
             'data' => $reports,
         ]);
     }
+
+public function stockForecast(AiStockForecastService $forecastService)
+{
+    return response()->json([
+        'success' => true,
+        'data' => $forecastService->getStockForecast(),
+    ]);
+}
 
     public function questions()
     {

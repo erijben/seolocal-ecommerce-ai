@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\AiController;
+use App\Http\Controllers\Api\KnowledgeBaseController;
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -41,4 +42,13 @@ Route::post('/ai/generate-report', [AiController::class, 'generateReport']);
 Route::post('/ai/ask', [AiController::class, 'ask']);
 Route::get('/ai/reports', [AiController::class, 'reports']);
 Route::get('/ai/questions', [AiController::class, 'questions']);
+
+
+Route::get('/ai/agent-insights', [AiController::class, 'agentInsights']);
+
+Route::get('/ai/stock-forecast', [AiController::class, 'stockForecast']);
+Route::apiResource('knowledge-documents', KnowledgeBaseController::class);
+Route::post('/knowledge-search', [KnowledgeBaseController::class, 'search']);
+
+Route::post('/knowledge-documents/upload-pdf', [KnowledgeBaseController::class, 'uploadPdf']);
 });

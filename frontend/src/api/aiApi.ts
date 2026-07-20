@@ -1,7 +1,9 @@
 import axiosClient from "./axiosClient";
 import type {
+  AiAgentInsights,
   AiQuestion,
   AiReport,
+  AiStockForecast,
   AskAiData,
   GenerateReportData,
 } from "../types/ai";
@@ -41,6 +43,22 @@ export async function getAiReports() {
 export async function getAiQuestions() {
   const response = await axiosClient.get<ApiResponse<AiQuestion[]>>(
     "/ai/questions"
+  );
+
+  return response.data.data;
+}
+
+export async function getAiStockForecast() {
+  const response = await axiosClient.get<ApiResponse<AiStockForecast>>(
+    "/ai/stock-forecast"
+  );
+
+  return response.data.data;
+} 
+
+export async function getAiAgentInsights() {
+  const response = await axiosClient.get<ApiResponse<AiAgentInsights>>(
+    "/ai/agent-insights"
   );
 
   return response.data.data;

@@ -2,12 +2,16 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Bot,
   Boxes,
+  Activity,
   FileText,
   LayoutDashboard,
   ShoppingCart,
   Tags,
   Users,
+  TrendingUp,
   X,
+  BookOpen,
+  
 } from "lucide-react";
 
 
@@ -23,7 +27,15 @@ const links = [
   { to: "/customers", label: "Clients", icon: Users },
   { to: "/orders", label: "Commandes", icon: ShoppingCart },
   { to: "/ai-assistant", label: "Assistant IA", icon: Bot },
+  {
+  label: "Knowledge Base",
+  to: "/knowledge-base",
+  icon: BookOpen,
+},
+  { to: "/ai-agent-insights", label: "Agent Insights", icon: Activity },
+  { to: "/ai-stock-forecast", label: "Stock Forecast", icon: TrendingUp },
 { to: "/ai-reports", label: "Rapports IA", icon: FileText },
+
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {

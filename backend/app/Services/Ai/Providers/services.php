@@ -40,6 +40,9 @@ return [
     'forecast_horizon_days' => env('ML_FORECAST_HORIZON_DAYS', 30),
 ],
 
+'ai' => [
+    'provider' => env('AI_PROVIDER', 'openai'),
+],
 
 'openai' => [
     'key' => env('OPENAI_API_KEY'),
@@ -49,16 +52,10 @@ return [
     'timeout' => env('OPENAI_TIMEOUT', 60),
 ],
 
-'ai' => [
-    'provider' => env('AI_PROVIDER', 'openai'),
-],
-
 'ollama' => [
     'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
-    'model' => env('OLLAMA_MODEL', 'llama3.2:1b'),
+    'model' => env('OLLAMA_MODEL', 'llama3.2'),
     'temperature' => env('OLLAMA_TEMPERATURE', 0.2),
     'timeout' => env('OLLAMA_TIMEOUT', 120),
-    'keep_alive' => env('OLLAMA_KEEP_ALIVE', '30m'),
 ],
-
 ];

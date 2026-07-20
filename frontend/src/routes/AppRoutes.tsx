@@ -11,6 +11,9 @@ import AdminLayout from "../components/layout/AdminLayout";
 import CustomerDetailsPage from "../pages/CustomerDetailsPage";
 import AiAssistantPage from "../pages/AiAssistantPage";
 import AiReportsPage from "../pages/AiReportsPage";
+import AiAgentInsightsPage from "../pages/AiAgentInsightsPage";
+import AiStockForecastPage from "../pages/AiStockForecastPage";
+import KnowledgeBasePage from "../pages/KnowledgeBasePage.tsx";
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
@@ -53,6 +56,9 @@ export default function AppRoutes() {
 
         <Route path="ai-assistant" element={<AiAssistantPage />} />
 <Route path="ai-reports" element={<AiReportsPage />} />
+<Route path="ai-agent-insights" element={<AiAgentInsightsPage />} />
+<Route path="ai-stock-forecast" element={<AiStockForecastPage />} />
+<Route path="/knowledge-base" element={<KnowledgeBasePage />} />
       </Route>
     </Routes>
   );

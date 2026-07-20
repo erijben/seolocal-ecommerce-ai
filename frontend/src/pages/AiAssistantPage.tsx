@@ -1,14 +1,33 @@
-import { useEffect, useState } from "react";
+//L’assistant IA utilise les mêmes résultats que stockforecast, mais il les transforme en réponse en langage naturel. comme un conseiller intelligent.
+/*Il sert à répondre à :
+
+Explique-moi quoi faire.
+Quels produits dois-je réapprovisionner ?
+Quelle action est prioritaire ?
+Quels produits risquent une rupture*/ 
+
+import { useEffect, useState, type FormEvent } from "react";
 import { Bot, MessageCircle, Send } from "lucide-react";
 import { askAi, getAiQuestions } from "../api/aiApi";
 import type { AiQuestion } from "../types/ai";
-import { cleanAiResponse, isDemoAiResponse } from "../utils/aiResponse";
+import { cleanAiResponse } from "../utils/aiResponse";
+import ReactMarkdown from "react-markdown";
+import {
+  getIntentLabel,
+  getProviderBadgeClass,
+  getProviderLabel,
+  getUsedDataSummary,
+} from "../utils/aiMetadata";
+
 const suggestedQuestions = [
   "Quels produits dois-je réapprovisionner ?",
   "Quels sont mes meilleurs clients ?",
   "Quels produits se vendent le mieux ?",
   "Quelles actions marketing peux-tu me recommander ?",
   "Pourquoi les ventes ont-elles diminué sur certaines périodes ?",
+  "Quelle est notre politique de retour ?",
+"Quand un produit doit-il être réapprovisionné ?",
+"Quelles règles faut-il vérifier avant une promotion ?",
 ];
 
 export default function AiAssistantPage() {
@@ -21,6 +40,8 @@ export default function AiAssistantPage() {
   async function loadHistory() {
     try {
       setHistoryLoading(true);
+      setError("");
+
       const data = await getAiQuestions();
       setHistory(data);
     } catch {
@@ -34,30 +55,48 @@ export default function AiAssistantPage() {
     loadHistory();
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+async function handleSubmit(e: FormEvent) {
+  e.preventDefault();
 
-    if (question.trim().length < 5) {
-      setError("La question doit contenir au moins 5 caractères.");
-      return;
-    }
+  const currentQuestion = question.trim();
+
+  if (currentQuestion.length < 5) {
+    setError("La question doit contenir au moins 5 caractères.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    setError("");
+
+    const response = await askAi({
+      question: currentQuestion,
+    });
+
+    console.log("AI POST response", response);
+
+    const createdQuestion = response.data;
+
+    setHistory((previous) => [
+      createdQuestion,
+      ...previous.filter((item) => item.id !== createdQuestion.id),
+    ]);
+
+    setQuestion("");
 
     try {
-      setLoading(true);
-      setError("");
-
-      await askAi({
-        question,
-      });
-
-      setQuestion("");
-      await loadHistory();
+      const freshHistory = await getAiQuestions();
+      setHistory(freshHistory);
     } catch {
-      setError("Impossible de générer une réponse IA.");
-    } finally {
-      setLoading(false);
+      console.warn("Historique non rechargé après la réponse IA.");
     }
+  } catch {
+    setError("Impossible de générer une réponse IA.");
+  } finally {
+    setLoading(false);
   }
+}
+
 
   function formatDate(value: string) {
     return new Date(value).toLocaleString("fr-FR");
@@ -69,7 +108,8 @@ export default function AiAssistantPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Assistant IA</h1>
           <p className="mt-1 text-slate-500">
-            Posez des questions sur les ventes, les stocks, les clients et les produits.
+            Posez des questions sur les ventes, les stocks, les clients et les
+            produits.
           </p>
         </div>
 
@@ -96,26 +136,27 @@ export default function AiAssistantPage() {
                 Question à l’assistant
               </h2>
               <p className="text-sm text-slate-500">
-                L’IA analyse les données préparées par Laravel.
+                L’agent IA analyse les données métier préparées par Laravel.
               </p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              className="min-h-36 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-500"
-              placeholder="Ex: Quels produits dois-je réapprovisionner ?"
-            />
+         <textarea
+  value={question}
+  onChange={(e) => setQuestion(e.target.value)}
+  disabled={loading || historyLoading}
+  className="min-h-36 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-500 disabled:bg-slate-100"
+  placeholder="Ex: Quels produits dois-je réapprovisionner ?"
+/>
 
-            <button
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-300"
-            >
-              <Send size={18} />
-              {loading ? "Analyse en cours..." : "Envoyer à l’IA"}
-            </button>
+         <button
+  disabled={loading || historyLoading}
+  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-300"
+>
+  <Send size={18} />
+  {loading ? "Analyse en cours..." : "Envoyer à l’agent IA"}
+</button>
           </form>
         </div>
 
@@ -164,24 +205,54 @@ export default function AiAssistantPage() {
                     <MessageCircle size={18} />
                   </div>
 
-                  <div>
+                  <div className="flex-1">
                     <p className="font-semibold text-slate-900">
                       {item.question}
                     </p>
+
                     <p className="text-xs text-slate-500">
                       {formatDate(item.created_at)}
                     </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.intent && (
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                          {getIntentLabel(item.intent)}
+                        </span>
+                      )}
+
+                      {item.provider && (
+                        <span className={getProviderBadgeClass(item.provider)}>
+                          {getProviderLabel(item.provider)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-           {isDemoAiResponse(item.answer) && (
-  <div className="mb-3 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-    Mode démo intelligent
-  </div>
-)}
+                {item.used_data && (
+                  <details className="mb-3 rounded-xl border border-slate-200 bg-white p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                      Données métier utilisées par l’agent
+                    </summary>
 
-<div className="whitespace-pre-line rounded-xl bg-white p-4 text-sm leading-7 text-slate-700">
-  {cleanAiResponse(item.answer)}
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {getUsedDataSummary(item.used_data).map((label) => (
+                        <div
+                          key={label}
+                          className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600"
+                        >
+                          {label}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+              <div className="rounded-2xl bg-white p-4 text-sm leading-7 text-slate-700">
+  <ReactMarkdown>
+    {cleanAiResponse(item.answer ?? "")}
+  </ReactMarkdown>
 </div>
               </div>
             ))}

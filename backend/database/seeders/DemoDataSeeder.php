@@ -1,5 +1,5 @@
 <?php
-
+//crée les catégories, produits et clients de base
 namespace Database\Seeders;
 
 use App\Models\Category;
