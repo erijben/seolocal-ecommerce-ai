@@ -32,7 +32,7 @@ export function getProviderBadgeClass(provider?: string | null) {
   return "bg-violet-50 text-violet-700";
 }
 
-export function getUsedDataSummary(usedData: any): string[] {
+export function getUsedDataSummary(usedData: AiUsedData): string[] {
   const labels: string[] = [];
 
   if (usedData.has_stats) {
@@ -48,23 +48,30 @@ export function getUsedDataSummary(usedData: any): string[] {
   }
 
   if (usedData.low_stock_products_count > 0) {
-    labels.push(`Produits en stock faible : ${usedData.low_stock_products_count}`);
+    labels.push(
+      `Produits en stock faible : ${usedData.low_stock_products_count}`
+    );
   }
 
-  if (usedData.stock_forecast_products_count > 0) {
-    labels.push(`Prévisions ML stock : ${usedData.stock_forecast_products_count} produit(s)`);
+  if ((usedData.stock_forecast_products_count ?? 0) > 0) {
+    labels.push(
+      `Prévisions ML stock : ${usedData.stock_forecast_products_count} produit(s)`
+    );
   }
 
   if (usedData.stock_forecast_provider) {
     labels.push(`Provider ML : ${usedData.stock_forecast_provider}`);
   }
 
-  if (usedData.rag_chunks_count > 0) {
-    labels.push(`Base de connaissances : active`);
+  if ((usedData.rag_chunks_count ?? 0) > 0) {
+    labels.push("Base de connaissances : active");
     labels.push(`Passages RAG utilisés : ${usedData.rag_chunks_count}`);
   }
 
-  if (Array.isArray(usedData.rag_sources) && usedData.rag_sources.length > 0) {
+  if (
+    Array.isArray(usedData.rag_sources) &&
+    usedData.rag_sources.length > 0
+  ) {
     labels.push(`Sources RAG : ${usedData.rag_sources.join(", ")}`);
   }
 
