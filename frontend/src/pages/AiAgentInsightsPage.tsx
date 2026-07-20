@@ -82,6 +82,15 @@ export default function AiAgentInsightsPage() {
 
   const overview = insights.overview;
 
+  const providerCount = (provider: string) =>
+    insights.provider_distribution.find(
+      (item) => item.provider === provider,
+    )?.total ?? 0;
+
+  const ollamaCount = providerCount("ollama");
+  const archivedCount =
+    providerCount("demo") + providerCount("demo_fallback");
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
@@ -90,8 +99,7 @@ export default function AiAgentInsightsPage() {
             AI Agent Insights
           </h1>
           <p className="mt-1 text-slate-500">
-            Observabilité de l’agent IA : intentions, provider, fallback et
-            dernières interactions.
+            Observabilité de l’assistant IA : intentions, providers et dernières interactions.
           </p>
         </div>
 
@@ -114,23 +122,23 @@ export default function AiAgentInsightsPage() {
         />
 
         <InsightCard
-          title="OpenAI"
-          value={overview.openai_count}
-          description="Réponses générées par le provider cloud"
+          title="Ollama local"
+          value={ollamaCount}
+          description="Réponses générées localement"
           icon={<Bot size={22} />}
         />
 
         <InsightCard
-          title="Fallback"
-          value={overview.fallback_count}
-          description="Bascule automatique si OpenAI est indisponible"
+          title="OpenAI"
+          value={overview.openai_count}
+          description="Réponses générées via OpenAI"
           icon={<ShieldCheck size={22} />}
         />
 
         <InsightCard
-          title="Démo locale"
-          value={overview.demo_count}
-          description="Analyse locale intelligente sans clé API"
+          title="Réponses archivées"
+          value={archivedCount}
+          description="Anciennes réponses conservées dans l’historique"
           icon={<Database size={22} />}
         />
       </div>

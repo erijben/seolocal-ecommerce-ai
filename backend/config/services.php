@@ -35,30 +35,42 @@ return [
         ],
     ],
 
+    'smartcommerce_admin' => [
+        'name' => env('SMARTCOMMERCE_ADMIN_NAME', 'SmartCommerce Administrator'),
+        'email' => env('SMARTCOMMERCE_ADMIN_EMAIL'),
+        'password' => env('SMARTCOMMERCE_ADMIN_PASSWORD'),
+    ],
+
     'ml_service' => [
-    'url' => env('ML_SERVICE_URL', 'http://127.0.0.1:8001'),
-    'forecast_horizon_days' => env('ML_FORECAST_HORIZON_DAYS', 30),
-],
+        'url' => env('ML_SERVICE_URL', 'http://127.0.0.1:8001'),
+        'forecast_horizon_days' => env('ML_FORECAST_HORIZON_DAYS', 30),
+        'timeout' => env('ML_SERVICE_TIMEOUT', 30),
+    ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4.1-mini'),
+        'temperature' => env('OPENAI_TEMPERATURE', 0.2),
+        'max_output_tokens' => env('OPENAI_MAX_OUTPUT_TOKENS', 900),
+        'timeout' => env('OPENAI_TIMEOUT', 60),
+    ],
 
-'openai' => [
-    'key' => env('OPENAI_API_KEY'),
-    'model' => env('OPENAI_MODEL', 'gpt-4.1-mini'),
-    'temperature' => env('OPENAI_TEMPERATURE', 0.2),
-    'max_output_tokens' => env('OPENAI_MAX_OUTPUT_TOKENS', 900),
-    'timeout' => env('OPENAI_TIMEOUT', 60),
-],
+    'ai' => [
+        'provider' => env('AI_PROVIDER', 'ollama'),
+        'allow_provider_fallback' => filter_var(
+            env('AI_ALLOW_PROVIDER_FALLBACK', false),
+            FILTER_VALIDATE_BOOLEAN
+        ),
+    ],
 
-'ai' => [
-    'provider' => env('AI_PROVIDER', 'openai'),
-],
-
-'ollama' => [
-    'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
-    'model' => env('OLLAMA_MODEL', 'llama3.2:1b'),
-    'temperature' => env('OLLAMA_TEMPERATURE', 0.2),
-    'timeout' => env('OLLAMA_TIMEOUT', 120),
-    'keep_alive' => env('OLLAMA_KEEP_ALIVE', '30m'),
-],
+    'ollama' => [
+        'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
+        'model' => env('OLLAMA_MODEL', 'llama3.2:1b'),
+        'temperature' => env('OLLAMA_TEMPERATURE', 0.2),
+        'timeout' => env('OLLAMA_TIMEOUT', 120),
+        'keep_alive' => env('OLLAMA_KEEP_ALIVE', '30m'),
+        'num_predict' => env('OLLAMA_NUM_PREDICT', 240),
+'num_ctx' => env('OLLAMA_NUM_CTX', 1024),
+    ],
 
 ];

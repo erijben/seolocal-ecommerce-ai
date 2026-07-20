@@ -7,8 +7,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState("admin@smartcommerce.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -64,9 +64,7 @@ export default function LoginPage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white">
               <ShoppingBag />
             </div>
-            <h2 className="text-3xl font-bold text-slate-900">
-              Connexion Admin
-            </h2>
+            <h2 className="text-3xl font-bold text-slate-900">Connexion</h2>
             <p className="mt-2 text-slate-500">
               Accédez à votre back-office e-commerce.
             </p>
@@ -87,7 +85,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@smartcommerce.com"
+              placeholder="nom@entreprise.com"
             />
           </div>
 
@@ -100,7 +98,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="password"
+              placeholder="Votre mot de passe"
             />
           </div>
 

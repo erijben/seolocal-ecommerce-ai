@@ -159,7 +159,7 @@ export default function AiStockForecastPage() {
       <div className="rounded-xl bg-white px-4 py-3">
         <p className="text-xs font-medium text-slate-500">Provider</p>
         <p className="mt-1 font-bold text-slate-900">
-          {forecast.provider ?? "laravel_baseline"}
+          {getForecastProviderLabel(forecast.provider)}
         </p>
       </div>
 
@@ -482,6 +482,15 @@ function getMlModelLabel(model?: string) {
   };
 
   return labels[model ?? ""] ?? "N/A";
+}
+
+function getForecastProviderLabel(provider?: string | null) {
+  const labels: Record<string, string> = {
+    python_scikit_learn: "Service ML Python",
+    laravel_baseline: "Prévision locale",
+  };
+
+  return labels[provider ?? "laravel_baseline"] ?? "Prévision locale";
 }
 
 function getConfidenceLabel(confidence?: string) {

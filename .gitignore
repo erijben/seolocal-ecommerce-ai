@@ -1,0 +1,32 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# PHP / Laravel
+vendor/
+backend/vendor/
+backend/storage/logs/*.log
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Python
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Backups
+*.backup.php
+*.bak
+*.old
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

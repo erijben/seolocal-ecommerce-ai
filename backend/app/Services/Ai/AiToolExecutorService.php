@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Services\DashboardService;
 use Throwable;
+use Illuminate\Support\Facades\Log;
 
 class AiToolExecutorService
 {
@@ -14,12 +15,18 @@ class AiToolExecutorService
     ) {
     }
 
-    public function execute(array $tools, string $question): array
+public function execute(array $tools, string $question, ?string $requestId = null): array
     {
         $results = [];
 
         foreach ($tools as $tool) {
             $name = $tool['name'] ?? null;
+            $toolStartedAt = microtime(true);
+
+Log::info('AI tool started', [
+    'request_id' => $requestId,
+    'tool' => $name,
+]);
 
             try {
                 if ($name === 'search_knowledge_base') {
@@ -28,50 +35,89 @@ class AiToolExecutorService
                 }
 
                 if ($name === 'get_stock_forecast') {
-                    $results['stock_forecast'] = $this->stockForecastService
-                        ->getStockForecast();
+              $results['stock_forecast'] = $this->stockForecastService->getStockForecast(
+    requestId: $requestId
+);
                 }
 
                 if ($name === 'get_business_snapshot') {
                     $results['business_snapshot'] = $this->getBusinessSnapshot();
                 }
-            } catch (Throwable) {
-                $this->setEmptyResult($results, $name, $question);
-            }
+                Log::info('AI tool finished', [
+    'request_id' => $requestId,
+    'tool' => $name,
+    'duration_ms' => (int) round((microtime(true) - $toolStartedAt) * 1000),
+]);
+        } catch (Throwable $exception) {
+    Log::warning('AI tool failed', [
+        'request_id' => $requestId,
+        'tool' => $name,
+        'exception' => $exception::class,
+        'message' => $exception->getMessage(),
+        'duration_ms' => (int) round((microtime(true) - $toolStartedAt) * 1000),
+    ]);
+
+    $this->setEmptyResult($results, $name, $question);
+}
         }
 
         return $results;
     }
 
-    private function getBusinessSnapshot(): array
-    {
-        return [
-            'stats' => $this->dashboardService->getStats(),
-            'sales_by_period' => $this->dashboardService->getSalesByPeriod('monthly'),
-            'top_products' => $this->dashboardService->getTopProducts(5),
-            'top_customers' => $this->dashboardService->getTopCustomers(5),
-            'orders_by_status' => $this->dashboardService->getOrdersByStatus(),
-            'low_stock_products' => $this->dashboardService->getLowStockProducts(),
+  private function getBusinessSnapshot(): array
+{
+    $snapshot = [
+        'stats' => $this->dashboardService->getStats(),
+        'sales_by_period' => $this->dashboardService->getSalesByPeriod('monthly'),
+        'top_products' => $this->dashboardService->getTopProducts(5),
+        'top_customers' => $this->dashboardService->getTopCustomers(5),
+        'orders_by_status' => $this->dashboardService->getOrdersByStatus(),
+        'low_stock_products' => $this->dashboardService->getLowStockProducts(),
+    ];
+
+    return [
+        'status' => ! empty($snapshot['stats']) ? 'ok' : 'empty',
+        ...$snapshot,
+    ];
+}
+
+private function setEmptyResult(array &$results, ?string $name, string $question): void
+{
+    if ($name === 'search_knowledge_base') {
+        $results['knowledge_base'] = [
+            'status' => 'error',
+            'error_message' => 'Knowledge base search failed',
+            'query' => $question,
+            'chunks_count' => 0,
+            'chunks' => [],
+            'context_text' => '',
+        ];
+
+        return;
+    }
+
+    if ($name === 'get_stock_forecast') {
+        $results['stock_forecast'] = [
+            'status' => 'error',
+            'error_message' => 'Stock forecast failed',
+            'provider' => null,
+            'products' => [],
+        ];
+
+        return;
+    }
+
+    if ($name === 'get_business_snapshot') {
+        $results['business_snapshot'] = [
+            'status' => 'error',
+            'error_message' => 'Business snapshot failed',
+            'stats' => [],
+            'sales_by_period' => [],
+            'top_products' => [],
+            'top_customers' => [],
+            'orders_by_status' => [],
+            'low_stock_products' => [],
         ];
     }
-
-    private function setEmptyResult(array &$results, ?string $name, string $question): void
-    {
-        if ($name === 'search_knowledge_base') {
-            $results['knowledge_base'] = [
-                'query' => $question,
-                'chunks_count' => 0,
-                'chunks' => [],
-                'context_text' => '',
-            ];
-        }
-
-        if ($name === 'get_stock_forecast') {
-            $results['stock_forecast'] = ['products' => []];
-        }
-
-        if ($name === 'get_business_snapshot') {
-            $results['business_snapshot'] = [];
-        }
-    }
+}
 }

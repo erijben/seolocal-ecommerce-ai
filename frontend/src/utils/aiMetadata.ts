@@ -16,20 +16,37 @@ export function getIntentLabel(intent?: string | null) {
 
 export function getProviderLabel(provider?: string | null) {
   const labels: Record<string, string> = {
-    openai: "Assistant IA",
-    demo: "Assistant IA",
-    demo_fallback: "Assistant IA",
+    openai: "OpenAI",
+    ollama: "Ollama local",
+    none: "Réponse non générée",
+    demo: "Réponse archivée",
+    demo_fallback: "Réponse archivée",
     assistant_ai: "Assistant IA",
   };
 
   return labels[provider ?? ""] ?? "Assistant IA";
 }
+
 export function getProviderBadgeClass(provider?: string | null) {
+  const baseClass = "rounded-full px-3 py-1 text-xs font-semibold";
+
   if (provider === "openai") {
-    return "bg-indigo-50 text-indigo-700";
+    return `${baseClass} bg-indigo-50 text-indigo-700`;
   }
 
-  return "bg-violet-50 text-violet-700";
+  if (provider === "ollama") {
+    return `${baseClass} bg-violet-50 text-violet-700`;
+  }
+
+  if (
+    provider === "none" ||
+    provider === "demo" ||
+    provider === "demo_fallback"
+  ) {
+    return `${baseClass} bg-slate-100 text-slate-600`;
+  }
+
+  return `${baseClass} bg-slate-50 text-slate-700`;
 }
 
 export function getUsedDataSummary(usedData: AiUsedData): string[] {

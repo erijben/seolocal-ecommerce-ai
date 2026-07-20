@@ -1,16 +1,6 @@
 const DEMO_BLOCK_REGEX =
   /## Mode démo intelligent activé[\s\S]*?Le système utilise donc l'analyse locale basée sur les vraies données du dashboard\.\s*/g;
 
-export function isDemoAiResponse(text?: string | null) {
-  if (!text) {
-    return false;
-  }
-
-  return (
-    text.includes("Mode démo intelligent activé") ||
-    text.includes("Réponse IA démo")
-  );
-}
 
 export function cleanAiResponse(text?: string | null) {
   if (!text) {

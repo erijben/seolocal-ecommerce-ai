@@ -59,16 +59,19 @@ public function ask(Request $request)
         'question' => ['required', 'string', 'min:5'],
     ]);
 
-    $result = $this->aiService->answerQuestion($validated['question']);
+   $result = $this->aiService->answerQuestion(
+    $validated['question'],
+    $request->user()->id
+);
 
     $aiQuestion = AiQuestion::create([
-        'user_id' => $request->user()->id,
-        'question' => $validated['question'],
-        'intent' => $result['intent'],
-        'provider' => $result['provider'],
-        'used_data' => $result['used_data'],
-        'answer' => $result['answer'],
-    ]);
+         'user_id' => $request->user()->id,
+    'question' => $validated['question'],
+    'answer' => $result['answer'],
+    'intent' => $result['intent'],
+    'provider' => $result['provider'],
+    'used_data' => $result['used_data'],
+]);
 
     return response()->json([
         'success' => true,
@@ -77,15 +80,21 @@ public function ask(Request $request)
     ], 201);
 }
 
-    public function reports()
-    {
-        $reports = AiReport::latest('generated_at')->get();
+public function reports(Request $request)
+{
+    $user = $request->user();
 
-        return response()->json([
-            'success' => true,
-            'data' => $reports,
-        ]);
+    $query = AiReport::query()->latest();
+
+    if ($user->role !== 'admin') {
+        $query->where('user_id', $user->id);
     }
+
+    return response()->json([
+        'success' => true,
+        'data' => $query->get(),
+    ]);
+}
 
 public function stockForecast(AiStockForecastService $forecastService)
 {
@@ -95,16 +104,21 @@ public function stockForecast(AiStockForecastService $forecastService)
     ]);
 }
 
-    public function questions()
-    {
-        $questions = AiQuestion::latest()->get();
+  public function questions(Request $request)
+{
+    $user = $request->user();
 
-        return response()->json([
-            'success' => true,
-            'data' => $questions,
-        ]);
+    $query = AiQuestion::query()->latest();
+
+    if ($user->role !== 'admin') {
+        $query->where('user_id', $user->id);
     }
 
+    return response()->json([
+        'success' => true,
+        'data' => $query->get(),
+    ]);
+}
     private function getReportTitle(string $type): string
     {
         return match ($type) {
@@ -115,4 +129,10 @@ public function stockForecast(AiStockForecastService $forecastService)
             default => 'Rapport IA',
         };
     }
+
+
+    private function isAdmin($user): bool
+{
+    return strtolower((string) ($user->role ?? '')) === 'admin';
+}
 }

@@ -8,12 +8,20 @@ use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class AiStockForecastService
 {
-    public function getStockForecast(int $days = 90): array
+    public function getStockForecast(int $days = 90, ?string $requestId = null): array
     {
+        $startedAt = microtime(true);
+
+        Log::info('AI stock forecast started', [
+            'request_id' => $requestId,
+            'analysis_window_days' => $days,
+        ]);
+
         $latestOrderDate = Order::where('status', '!=', 'cancelled')->max('order_date');
 
         $endDate = $latestOrderDate
@@ -36,20 +44,37 @@ class AiStockForecastService
             days: $days
         );
 
-        $mlResponse = $this->callMlService($payload);
+        $mlResponse = $this->callMlService($payload, $requestId);
 
         if ($mlResponse !== null) {
-            return [
+            $result = [
+         'status' => empty($mlResponse['products'] ?? []) ? 'empty' : 'ok',
                 'provider' => $mlResponse['provider'] ?? 'python_scikit_learn',
                 'model_version' => $mlResponse['model_version'] ?? 'linear-regression-v1',
                 'analysis_window_days' => $days,
                 'forecast_horizon_days' => $payload['forecast_horizon_days'],
                 'analysis_start_date' => $startDate->toDateTimeString(),
                 'analysis_end_date' => $endDate->toDateTimeString(),
-                'summary' => $mlResponse['summary'],
-                'products' => $mlResponse['products'],
+                'summary' => $mlResponse['summary'] ?? [],
+                'products' => $mlResponse['products'] ?? [],
             ];
+
+            Log::info('AI stock forecast succeeded with ML service', [
+                'request_id' => $requestId,
+                'provider' => $result['provider'],
+                'model_version' => $result['model_version'],
+                'products_count' => count($result['products']),
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
+
+            return $result;
         }
+
+        Log::warning('AI stock forecast using Laravel baseline', [
+            'request_id' => $requestId,
+            'products_count' => $products->count(),
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ]);
 
         return $this->getLaravelFallbackForecast(
             products: $products,
@@ -63,8 +88,6 @@ class AiStockForecastService
 
     private function getDailySalesByProduct(Carbon $startDate, Carbon $endDate)
     {
-        //Cette méthode récupère les ventes par produit et par jour
-        //Pourquoi on groupe par jour ? Parce que le ML a besoin d’un historique temporel :
         return OrderItem::query()
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->where('orders.status', '!=', 'cancelled')
@@ -115,11 +138,6 @@ class AiStockForecastService
     }
 
     private function buildDailySalesForProduct(
-        //Elle crée une ligne pour chaque jour, même s’il n’y a pas de vente. Parce que pour le ML, un jour sans vente est aussi une information.
-        /*Si on ne met que les jours où il y a des ventes, le modèle croit que le produit se vend tous les jours.
-
-Donc cette méthode rend les données beaucoup plus propres.*/
-
         int $productId,
         $dailySalesByProduct,
         Carbon $startDate,
@@ -150,21 +168,64 @@ Donc cette méthode rend les données beaucoup plus propres.*/
         return $dailySales;
     }
 
-    private function callMlService(array $payload): ?array
+    private function callMlService(array $payload, ?string $requestId = null): ?array
     {
-        //cette méthode appelle Python
-        try {
-            $baseUrl = rtrim(config('services.ml_service.url'), '/');
+        $startedAt = microtime(true);
+        $baseUrl = rtrim((string) config('services.ml_service.url'), '/');
+        $timeout = (int) config('services.ml_service.timeout', 30);
 
-            $response = Http::timeout(30)
+        if ($baseUrl === '') {
+            Log::warning('AI stock forecast skipped ML service: empty base URL', [
+                'request_id' => $requestId,
+            ]);
+
+            return null;
+        }
+
+        try {
+            Log::info('AI stock forecast ML request started', [
+                'request_id' => $requestId,
+                'url' => $baseUrl . '/forecast/stock',
+                'timeout' => $timeout,
+                'products_count' => count($payload['products'] ?? []),
+                'analysis_window_days' => $payload['analysis_window_days'] ?? null,
+                'forecast_horizon_days' => $payload['forecast_horizon_days'] ?? null,
+            ]);
+
+            $response = Http::timeout($timeout)
                 ->post($baseUrl . '/forecast/stock', $payload);
 
+            $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+
             if (! $response->successful()) {
+                Log::warning('AI stock forecast ML service returned non-success status', [
+                    'request_id' => $requestId,
+                    'status' => $response->status(),
+                    'duration_ms' => $durationMs,
+                ]);
+
                 return null;
             }
 
-            return $response->json();
-        } catch (Throwable) {
+            $json = $response->json();
+
+            Log::info('AI stock forecast ML response received', [
+                'request_id' => $requestId,
+                'provider' => data_get($json, 'provider'),
+                'model_version' => data_get($json, 'model_version'),
+                'products_count' => count(data_get($json, 'products', [])),
+                'duration_ms' => $durationMs,
+            ]);
+
+            return is_array($json) ? $json : null;
+        } catch (Throwable $exception) {
+            Log::warning('AI stock forecast ML request failed', [
+                'request_id' => $requestId,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
+
             return null;
         }
     }
@@ -247,9 +308,9 @@ Donc cette méthode rend les données beaucoup plus propres.*/
                 };
             })
             ->values();
-//On a prévu un fallback. Si Python est éteint ou ne répond pas : Il retourne une prévision simple. 
-/*C’est très professionnel, parce qu’en entreprise, un service externe peut tomber. Il faut prévoir une solution de secours*/
+
         return [
+            'status' => $forecastProducts->isEmpty() ? 'empty' : 'ok',
             'provider' => 'laravel_baseline',
             'model_version' => 'moving-average-baseline-v1',
             'analysis_window_days' => $days,

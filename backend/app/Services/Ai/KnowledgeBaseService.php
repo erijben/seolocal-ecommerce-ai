@@ -177,6 +177,7 @@ public function search(string $query, int $limit = 5): array
         $results = $this->search($query, $limit);
 
         return [
+            'status' => count($results) > 0 ? 'ok' : 'empty',
             'query' => $query,
             'chunks_count' => count($results),
             'chunks' => $results,

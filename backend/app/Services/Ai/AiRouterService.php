@@ -32,20 +32,11 @@ class AiRouterService
             'purpose' => 'tool_routing',
         ]);
 
-        $json = $this->extractJson($result['answer'] ?? '');
+       $json = $this->extractJson($result['answer'] ?? '');
 
-        if (! is_array($json)) {
-            return [
-                'provider' => $result['provider'] ?? 'none',
-                'tools' => [
-                    [
-                        'name' => 'search_knowledge_base',
-                        'reason' => 'Recherche générique dans les documents internes disponibles.',
-                    ],
-                ],
-                'confidence' => 0.3,
-            ];
-        }
+if (! is_array($json)) {
+    return $this->routeLocally($question);
+}
 
         $tools = collect($json['tools'] ?? [])
             ->map(function ($tool) {
@@ -67,6 +58,15 @@ class AiRouterService
                 ],
             ];
         }
+        $confidence = is_numeric($json['confidence'] ?? null)
+    ? max(0.0, min(1.0, (float) $json['confidence']))
+    : 0.5;
+
+return [
+    'provider' => $result['provider'] ?? 'none',
+    'tools' => $tools,
+    'confidence' => $confidence,
+];
 
     }
 

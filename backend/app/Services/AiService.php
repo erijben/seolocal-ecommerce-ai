@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Services\Ai\AiRouterService;
 use App\Services\Ai\AiToolExecutorService;
 use App\Services\Ai\Providers\AiProviderManager;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
 class AiService
 {
     public function __construct(
@@ -15,18 +18,43 @@ class AiService
     ) {
     }
 
-    public function answerQuestion(string $question): array
+    public function answerQuestion(string $question, ?int $userId = null): array
     {
+        $requestId = (string) Str::uuid();
+        $startedAt = microtime(true);
 
-    if (config('services.ai.provider') === 'ollama') {
-    @set_time_limit(120);
-}
+        Log::info('AI ask started', [
+            'request_id' => $requestId,
+            'user_id' => $userId,
+            'question_preview' => mb_substr($question, 0, 200),
+            'question_length' => mb_strlen($question),
+        ]);
+
+        if (config('services.ai.provider') === 'ollama') {
+            @set_time_limit(120);
+        }
+
         $route = $this->routerService->route($question);
+
+        Log::info('AI route selected', [
+            'request_id' => $requestId,
+            'provider' => $route['provider'] ?? null,
+            'confidence' => $route['confidence'] ?? null,
+            'tools' => collect($route['tools'] ?? [])->pluck('name')->values()->toArray(),
+        ]);
 
         $toolResults = $this->toolExecutorService->execute(
             tools: $route['tools'] ?? [],
-            question: $question
+            question: $question,
+            requestId: $requestId
         );
+
+        Log::info('AI tools executed', [
+            'request_id' => $requestId,
+            'rag_chunks_count' => data_get($toolResults, 'knowledge_base.chunks_count', 0),
+            'stock_forecast_products_count' => count(data_get($toolResults, 'stock_forecast.products', [])),
+            'has_business_snapshot' => ! empty(data_get($toolResults, 'business_snapshot.stats')),
+        ]);
 
         if (! $this->hasUsableToolData($toolResults)) {
             $finalResponse = ['provider' => 'none', 'answer' => null];
@@ -42,6 +70,7 @@ class AiService
                 ],
             ], [
                 'purpose' => 'final_answer',
+                'request_id' => $requestId,
             ]);
         }
 
@@ -50,6 +79,13 @@ class AiService
         if (! is_string($answer) || trim($answer) === '') {
             $answer = $this->safeNoAnswer($toolResults);
         }
+
+        Log::info('AI ask finished', [
+            'request_id' => $requestId,
+            'provider' => $finalResponse['provider'] ?? 'none',
+            'answer_empty' => ! is_string($answer) || trim($answer) === '',
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ]);
 
         return [
             'answer' => $this->cleanAssistantAnswerText($answer),
@@ -111,6 +147,7 @@ Règles strictes :
 - Ne mentionne jamais les mots : démo, fallback, quota, erreur technique.
 - Ne dis pas que tu es OpenAI ou Ollama.
 - Ne fais pas de réponse générique si les données ne suffisent pas.
+- Corrige l’orthographe et les accents en français.
 
 Structure recommandée :
 1. Réponse directe
@@ -119,11 +156,11 @@ Structure recommandée :
 ";
     }
 
-private function buildFinalAnswerPrompt(string $question, array $route, array $toolResults): string
-{
-    $context = $this->compactToolResultsForPrompt($toolResults);
-//Ça va rendre les réponses ML plus propres.
-    return trim("
+    private function buildFinalAnswerPrompt(string $question, array $route, array $toolResults): string
+    {
+        $context = $this->compactToolResultsForPrompt($toolResults);
+
+        return trim("
 Tu es l'Assistant IA d'une plateforme e-commerce.
 
 Tu dois répondre en français, de manière claire, utile et professionnelle.
@@ -142,6 +179,7 @@ Règles importantes :
 - Pour une question de réapprovisionnement, classe les produits par niveau de risque et quantité recommandée.
 - Ne transforme pas une demande prévue en stock actuel.
 - Réponds en 4 points maximum si la question demande un résumé.
+
 Question utilisateur :
 {$question}
 
@@ -150,70 +188,69 @@ Contexte disponible :
 
 Réponse :
 ");
-}
-
-
-private function compactToolResultsForPrompt(array $toolResults): string
-{
-    $parts = [];
-
-    $chunks = collect(data_get($toolResults, 'knowledge_base.chunks', []))
-        ->take(2)
-        ->map(function ($chunk) {
-            $title = data_get($chunk, 'document_title', 'Document interne');
-            $content = $this->cleanTextForPrompt(data_get($chunk, 'content', ''));
-
-            if (mb_strlen($content) > 400) {
-    $content = mb_substr($content, 0, 400) . '...';
-}
-
-            return "Source : {$title}\nExtrait : {$content}";
-        })
-        ->filter()
-        ->implode("\n\n");
-
-    if ($chunks !== '') {
-        $parts[] = "Documents internes :\n" . $chunks;
     }
 
-    $forecastProducts = collect(data_get($toolResults, 'stock_forecast.products', []))
-        ->take(5)
-        ->map(function ($product) {
-            $name = data_get($product, 'product_name', data_get($product, 'name', 'Produit'));
-            $risk = data_get($product, 'risk_level', 'non précisé');
-            $stock = data_get($product, 'current_stock', data_get($product, 'stock', 'non précisé'));
-            $demand = data_get($product, 'projected_demand_30_days', 'non précisée');
-            $restock = data_get($product, 'recommended_restock_quantity', 'non précisé');
+    private function compactToolResultsForPrompt(array $toolResults): string
+    {
+        $parts = [];
 
-            return "{$name} : risque {$risk}, stock actuel {$stock}, demande prévue sur 30 jours {$demand}, réassort recommandé {$restock}.";
-        })
-        ->implode("\n");
+        $chunks = collect(data_get($toolResults, 'knowledge_base.chunks', []))
+            ->take(2)
+            ->map(function ($chunk) {
+                $title = data_get($chunk, 'document_title', 'Document interne');
+                $content = $this->cleanTextForPrompt(data_get($chunk, 'content', ''));
 
-    if ($forecastProducts !== '') {
-        $parts[] = "Prévisions de stock :\n" . $forecastProducts;
+                if (mb_strlen($content) > 400) {
+                    $content = mb_substr($content, 0, 400) . '...';
+                }
+
+                return "Source : {$title}\nExtrait : {$content}";
+            })
+            ->filter()
+            ->implode("\n\n");
+
+        if ($chunks !== '') {
+            $parts[] = "Documents internes :\n" . $chunks;
+        }
+
+        $forecastProducts = collect(data_get($toolResults, 'stock_forecast.products', []))
+            ->take(5)
+            ->map(function ($product) {
+                $name = data_get($product, 'product_name', data_get($product, 'name', 'Produit'));
+                $risk = data_get($product, 'risk_level', 'non précisé');
+                $stock = data_get($product, 'current_stock', data_get($product, 'stock', 'non précisé'));
+                $demand = data_get($product, 'projected_demand_30_days', 'non précisée');
+                $restock = data_get($product, 'recommended_restock_quantity', 'non précisé');
+
+                return "{$name} : risque {$risk}, stock actuel {$stock}, demande prévue sur 30 jours {$demand}, réassort recommandé {$restock}.";
+            })
+            ->implode("\n");
+
+        if ($forecastProducts !== '') {
+            $parts[] = "Prévisions de stock :\n" . $forecastProducts;
+        }
+
+        $topProducts = collect(data_get($toolResults, 'business_snapshot.top_products', []))
+            ->take(5)
+            ->map(function ($product) {
+                $name = data_get($product, 'name', data_get($product, 'product_name', 'Produit'));
+                $quantity = data_get($product, 'total_quantity', data_get($product, 'total_sold', 0));
+                $revenue = data_get($product, 'total_revenue', data_get($product, 'revenue', 0));
+
+                return "{$name} : {$quantity} vente(s), chiffre d'affaires {$revenue}.";
+            })
+            ->implode("\n");
+
+        if ($topProducts !== '') {
+            $parts[] = "Produits les plus vendus :\n" . $topProducts;
+        }
+
+        if (empty($parts)) {
+            return "Aucun contexte interne disponible.";
+        }
+
+        return implode("\n\n---\n\n", $parts);
     }
-
-    $topProducts = collect(data_get($toolResults, 'business_snapshot.top_products', []))
-        ->take(5)
-        ->map(function ($product) {
-            $name = data_get($product, 'name', data_get($product, 'product_name', 'Produit'));
-            $quantity = data_get($product, 'total_quantity', data_get($product, 'total_sold', 0));
-            $revenue = data_get($product, 'total_revenue', data_get($product, 'revenue', 0));
-
-            return "{$name} : {$quantity} vente(s), chiffre d'affaires {$revenue}.";
-        })
-        ->implode("\n");
-
-    if ($topProducts !== '') {
-        $parts[] = "Produits les plus vendus :\n" . $topProducts;
-    }
-
-    if (empty($parts)) {
-        return "Aucun contexte interne disponible.";
-    }
-
-    return implode("\n\n---\n\n", $parts);
-}
 
     private function reportSystemPrompt(): string
     {
@@ -229,137 +266,43 @@ Donne des recommandations concrètes.
 
     private function hasUsableToolData(array $toolResults): bool
     {
-        return data_get($toolResults, 'knowledge_base.chunks_count', 0) > 0
-            || count(data_get($toolResults, 'stock_forecast.products', [])) > 0
-            || ! empty(data_get($toolResults, 'business_snapshot.stats'));
+        $knowledgeUsable =
+            data_get($toolResults, 'knowledge_base.status') !== 'error'
+            && data_get($toolResults, 'knowledge_base.chunks_count', 0) > 0;
+
+        $forecastUsable =
+            data_get($toolResults, 'stock_forecast.status') !== 'error'
+            && count(data_get($toolResults, 'stock_forecast.products', [])) > 0;
+
+        $businessUsable =
+            data_get($toolResults, 'business_snapshot.status') !== 'error'
+            && ! empty(data_get($toolResults, 'business_snapshot.stats'));
+
+        return $knowledgeUsable || $forecastUsable || $businessUsable;
     }
 
-private function safeNoAnswer(array $toolResults): string
-{
-    return "Le moteur IA local n’a pas répondu dans le délai disponible. Merci de réessayer dans quelques secondes.";
-}
-
-
-private function extractiveAnswerFromKnowledgeBase(array $toolResults): string
-{
-    $chunks = collect(data_get($toolResults, 'knowledge_base.chunks', []))
-        ->take(3);
-
-    $sources = $chunks
-        ->pluck('document_title')
-        ->filter()
-        ->unique()
-        ->values();
-
-    $extracts = $chunks
-        ->map(function ($chunk) {
-            $content = $this->cleanExtractText(data_get($chunk, 'content', ''));
-
-            if (mb_strlen($content) > 450) {
-                $content = mb_substr($content, 0, 450) . '...';
-            }
-
-            return "- " . $content;
-        })
-        ->filter(fn ($line) => trim($line) !== '-')
-        ->values();
-
-    if ($extracts->isEmpty()) {
-        return "Des documents internes pertinents ont été trouvés, mais leur contenu n’a pas pu être résumé correctement.";
+    private function safeNoAnswer(array $toolResults): string
+    {
+        return "Le moteur IA local n’a pas répondu dans le délai disponible. Merci de réessayer dans quelques secondes.";
     }
 
-    return "
-Des passages pertinents ont été trouvés dans les documents internes. Le moteur IA local n’a pas pu formuler une réponse complète dans le délai disponible, mais voici les extraits les plus pertinents :
+    private function cleanTextForPrompt(?string $text): string
+    {
+        $text = (string) $text;
 
-" . $extracts->implode("\n\n") . "
+        $text = preg_replace('/SmartCommerce AI Platform.*?Page \d+/iu', '', $text);
+        $text = preg_replace('/Document interne de démonstration/iu', '', $text);
+        $text = preg_replace('/Version demo client.*?2026/iu', '', $text);
+        $text = preg_replace('/Objectif du document/iu', '', $text);
+        $text = preg_replace('/Type RAG conseillé\s*:\s*[a-zA-Z0-9_-]+/iu', '', $text);
 
-Sources utilisées :
-" . $sources->map(fn ($source) => "- {$source}")->implode("\n");
-}
+        $text = preg_replace('/Ce document sert.*?(?=R[eè]gle|Politique|Proc[eé]dure|FAQ|Les clients|Le client|Avant|En cas|$)/iu', '', $text);
+        $text = preg_replace('/Il contient des r[eè]gles internes.*?(?=R[eè]gle|Politique|Proc[eé]dure|FAQ|Les clients|Le client|Avant|En cas|$)/iu', '', $text);
 
-private function extractiveAnswerFromStockForecast(array $toolResults): string
-{
-    $products = collect(data_get($toolResults, 'stock_forecast.products', []))
-        ->take(5);
+        $text = preg_replace('/\s+/', ' ', $text);
 
-    if ($products->isEmpty()) {
-        return "Aucune prévision de stock exploitable n’est disponible pour le moment.";
+        return trim($text);
     }
-
-    $lines = $products->map(function ($product) {
-        $name = data_get($product, 'product_name', data_get($product, 'name', 'Produit'));
-        $risk = data_get($product, 'risk_level', 'non précisé');
-        $stock = data_get($product, 'current_stock', data_get($product, 'stock', 'non précisé'));
-        $demand = data_get($product, 'projected_demand_30_days', 'non précisée');
-        $restock = data_get($product, 'recommended_restock_quantity', 'non précisé');
-
-        return "- {$name} : risque {$risk}, stock actuel {$stock}, demande prévue 30 jours {$demand}, réassort recommandé {$restock}.";
-    });
-
-    return "
-Voici les produits à surveiller selon le module de prévision de stock :
-
-" . $lines->implode("\n");
-}
-
-private function extractiveAnswerFromBusinessData(array $toolResults): string
-{
-    $stats = data_get($toolResults, 'business_snapshot.stats', []);
-    $topProducts = collect(data_get($toolResults, 'business_snapshot.top_products', []))->take(5);
-
-    $lines = [];
-
-    if (! empty($stats)) {
-        $lines[] = "- Chiffre d'affaires : " . data_get($stats, 'revenue', data_get($stats, 'total_revenue', 0));
-        $lines[] = "- Nombre de commandes : " . data_get($stats, 'orders_count', 0);
-        $lines[] = "- Nombre de clients : " . data_get($stats, 'customers_count', 0);
-        $lines[] = "- Nombre de produits : " . data_get($stats, 'products_count', 0);
-    }
-
-    if ($topProducts->isNotEmpty()) {
-        $lines[] = "";
-        $lines[] = "Produits les plus performants :";
-
-        foreach ($topProducts as $product) {
-            $name = data_get($product, 'name', data_get($product, 'product_name', 'Produit'));
-            $quantity = data_get($product, 'total_quantity', data_get($product, 'total_sold', 0));
-            $lines[] = "- {$name} : {$quantity} vente(s)";
-        }
-    }
-
-    return implode("\n", $lines);
-}
-
-private function cleanExtractText(string $text): string
-{
-    $text = preg_replace('/SmartCommerce AI Platform.*?Page \d+/i', '', $text);
-    $text = preg_replace('/Document interne de démonstration/i', '', $text);
-    $text = preg_replace('/Version demo client.*?2026/i', '', $text);
-    $text = preg_replace('/Objectif du document/i', '', $text);
-    $text = preg_replace('/Type RAG conseillé\s*:\s*\w+/i', '', $text);
-    $text = preg_replace('/\s+/', ' ', $text);
-
-    return trim($text);
-}
-
-private function cleanTextForPrompt(?string $text): string
-{
-    $text = (string) $text;
-
-    $text = preg_replace('/SmartCommerce AI Platform.*?Page \d+/iu', '', $text);
-    $text = preg_replace('/Document interne de démonstration/iu', '', $text);
-    $text = preg_replace('/Version demo client.*?2026/iu', '', $text);
-    $text = preg_replace('/Objectif du document/iu', '', $text);
-    $text = preg_replace('/Type RAG conseillé\s*:\s*[a-zA-Z0-9_-]+/iu', '', $text);
-
-    $text = preg_replace('/Ce document sert.*?(?=R[eè]gle|Politique|Proc[eé]dure|FAQ|Les clients|Le client|Avant|En cas|$)/iu', '', $text);
-    $text = preg_replace('/Il contient des r[eè]gles internes.*?(?=R[eè]gle|Politique|Proc[eé]dure|FAQ|Les clients|Le client|Avant|En cas|$)/iu', '', $text);
-
-    $text = preg_replace('/\s+/', ' ', $text);
-
-    return trim($text);
-}
-
 
     private function summarizeUsedData(array $route, array $toolResults): array
     {
@@ -417,22 +360,12 @@ private function cleanTextForPrompt(?string $text): string
     {
         $answer = str_replace(
             [
-                'Réponse IA démo',
-                'Rapport IA démo',
-                'Mode démo intelligent activé',
-                'fallback Laravel',
-                'OpenAI n\'est pas disponible',
                 'Réponse concise et professionnelle.',
-'Voici la réponse :',
+                'Voici la réponse :',
             ],
             [
-                'Réponse de l’assistant IA',
-                'Rapport de l’assistant IA',
-                '',
-                'moteur IA secondaire',
                 '',
                 '',
-'',
             ],
             $answer
         );
@@ -442,3 +375,4 @@ private function cleanTextForPrompt(?string $text): string
         return trim($answer);
     }
 }
+

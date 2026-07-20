@@ -15,28 +15,43 @@ class OllamaProvider implements AiProviderInterface
 
     public function chat(array $messages, array $options = []): ?string
     {
+        $requestId = $options['request_id'] ?? null;
+        $purpose = $options['purpose'] ?? 'final_answer';
+
         $baseUrl = rtrim((string) config('services.ollama.url'), '/');
         $model = (string) config('services.ollama.model', 'llama3.2:1b');
 
         if ($baseUrl === '') {
-            Log::warning('Ollama provider skipped: empty base URL');
+            Log::warning('Ollama skipped: empty base URL', [
+                'request_id' => $requestId,
+                'purpose' => $purpose,
+            ]);
 
             return null;
         }
 
-        $purpose = $options['purpose'] ?? 'final_answer';
-
         $timeout = $purpose === 'tool_routing'
             ? 5
-            : (int) config('services.ollama.timeout', 60);
+            : (int) config('services.ollama.timeout', 120);
 
-        $numPredict = $purpose === 'tool_routing'
-            ? 128
-            : 220;
+       $numPredict = $purpose === 'tool_routing'
+    ? 80
+    : (int) config('services.ollama.num_predict', 240);
+
+        $totalMessageLength = collect($messages)
+            ->sum(fn ($message) => mb_strlen((string) ($message['content'] ?? '')));
 
         $startedAt = microtime(true);
 
         try {
+            Log::info('Ollama request started', [
+                'request_id' => $requestId,
+                'purpose' => $purpose,
+                'model' => $model,
+                'timeout' => $timeout,
+                'message_length' => $totalMessageLength,
+            ]);
+
             $response = Http::connectTimeout(3)
                 ->timeout($timeout)
                 ->post($baseUrl . '/api/chat', [
@@ -47,24 +62,27 @@ class OllamaProvider implements AiProviderInterface
                     'options' => [
                         'temperature' => (float) config('services.ollama.temperature', 0.2),
                         'num_predict' => $numPredict,
-                        'num_ctx' => 2048,
+                       'num_ctx' => (int) config('services.ollama.num_ctx', 1024),
                     ],
                 ]);
 
-            $duration = round(microtime(true) - $startedAt, 2);
+            $durationSeconds = round(microtime(true) - $startedAt, 2);
 
             Log::info('Ollama response received', [
-                'status' => $response->status(),
-                'duration_seconds' => $duration,
-                'model' => $model,
+                'request_id' => $requestId,
                 'purpose' => $purpose,
+                'model' => $model,
+                'status' => $response->status(),
+                'duration_seconds' => $durationSeconds,
             ]);
 
             if (! $response->successful()) {
-                Log::warning('Ollama provider returned non-success status', [
+                Log::warning('Ollama returned non-success status', [
+                    'request_id' => $requestId,
+                    'purpose' => $purpose,
+                    'model' => $model,
                     'status' => $response->status(),
-                    'duration_seconds' => $duration,
-                    'body' => mb_substr($response->body(), 0, 1000),
+                    'duration_seconds' => $durationSeconds,
                 ]);
 
                 return null;
@@ -73,11 +91,12 @@ class OllamaProvider implements AiProviderInterface
             $content = data_get($response->json(), 'message.content');
 
             if (! is_string($content) || trim($content) === '') {
-                Log::warning('Ollama provider returned empty content', [
-                    'status' => $response->status(),
-                    'duration_seconds' => $duration,
-                    'model' => $model,
+                Log::warning('Ollama returned empty content', [
+                    'request_id' => $requestId,
                     'purpose' => $purpose,
+                    'model' => $model,
+                    'status' => $response->status(),
+                    'duration_seconds' => $durationSeconds,
                 ]);
 
                 return null;
@@ -85,11 +104,13 @@ class OllamaProvider implements AiProviderInterface
 
             return trim($content);
         } catch (Throwable $exception) {
-            Log::warning('Ollama provider failed', [
+            Log::warning('Ollama request failed', [
+                'request_id' => $requestId,
+                'purpose' => $purpose,
+                'model' => $model,
+                'exception' => $exception::class,
                 'message' => $exception->getMessage(),
                 'duration_seconds' => round(microtime(true) - $startedAt, 2),
-                'model' => $model,
-                'purpose' => $purpose,
             ]);
 
             return null;
