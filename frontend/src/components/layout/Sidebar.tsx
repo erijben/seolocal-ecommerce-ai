@@ -21,19 +21,19 @@ type SidebarProps = {
 };
 
 const links = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { to: "/categories", label: "Catégories", icon: Tags },
   { to: "/products", label: "Produits", icon: Boxes },
   { to: "/customers", label: "Clients", icon: Users },
   { to: "/orders", label: "Commandes", icon: ShoppingCart },
   { to: "/ai-assistant", label: "Assistant IA", icon: Bot },
   {
-  label: "Knowledge Base",
+  label: "Base de connaissances",
   to: "/knowledge-base",
   icon: BookOpen,
 },
-  { to: "/ai-agent-insights", label: "Agent Insights", icon: Activity },
-  { to: "/ai-stock-forecast", label: "Stock Forecast", icon: TrendingUp },
+  { to: "/ai-agent-insights", label: "Suivi de l’assistant", icon: Activity },
+  { to: "/ai-stock-forecast", label: "Prévisions de stock", icon: TrendingUp },
 { to: "/ai-reports", label: "Rapports IA", icon: FileText },
 
 ];
@@ -62,7 +62,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <h1 className="text-2xl font-bold text-slate-900">
               SmartCommerce
             </h1>
-            <p className="text-sm text-slate-500">Admin Dashboard</p>
+            <p className="text-sm text-slate-500">Administration</p>
           </div>
 
           <button

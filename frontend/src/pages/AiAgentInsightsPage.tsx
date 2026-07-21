@@ -30,7 +30,7 @@ export default function AiAgentInsightsPage() {
       const data = await getAiAgentInsights();
       setInsights(data);
     } catch {
-      setError("Impossible de charger les statistiques de l’agent IA.");
+      setError("Impossible de charger l’activité de l’assistant IA.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export default function AiAgentInsightsPage() {
   if (loading) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
-        Chargement des insights de l’agent IA...
+        Chargement du suivi de l’assistant IA...
       </div>
     );
   }
@@ -75,7 +75,7 @@ export default function AiAgentInsightsPage() {
   if (error || !insights) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
-        {error || "Aucune donnée disponible pour l’agent IA."}
+        {error || "Aucune donnée disponible pour l’assistant IA."}
       </div>
     );
   }
@@ -96,10 +96,10 @@ export default function AiAgentInsightsPage() {
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">
-            AI Agent Insights
+            Suivi de l’assistant IA
           </h1>
           <p className="mt-1 text-slate-500">
-            Observabilité de l’assistant IA : intentions, providers et dernières interactions.
+            Activité et utilisation de l’assistant IA.
           </p>
         </div>
 
@@ -117,7 +117,7 @@ export default function AiAgentInsightsPage() {
         <InsightCard
           title="Questions IA"
           value={overview.total_questions}
-          description="Total des interactions avec l’agent"
+          description="Total des interactions avec l’assistant"
           icon={<MessageCircle size={22} />}
         />
 
@@ -152,17 +152,17 @@ export default function AiAgentInsightsPage() {
 
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Distribution des intentions
+                Sujets les plus demandés
               </h2>
               <p className="text-sm text-slate-500">
-                Montre les sujets les plus demandés à l’agent IA.
+                Répartition des demandes adressées à l’assistant IA.
               </p>
             </div>
           </div>
 
           {insights.intent_distribution.length === 0 ? (
             <p className="py-8 text-center text-slate-500">
-              Aucune intention détectée pour le moment.
+              Aucun sujet détecté pour le moment.
             </p>
           ) : (
             <div className="space-y-4">
@@ -204,7 +204,7 @@ export default function AiAgentInsightsPage() {
                 Dernière activité
               </h2>
               <p className="text-sm text-slate-500">
-                Dernière question posée à l’agent.
+                Dernière question posée à l’assistant.
               </p>
             </div>
           </div>
@@ -217,11 +217,11 @@ export default function AiAgentInsightsPage() {
           </div>
 
           <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Intention dominante</p>
+            <p className="text-sm text-slate-500">Sujet le plus fréquent</p>
             <p className="mt-1 font-semibold text-slate-900">
               {overview.most_used_intent
                 ? getIntentLabel(overview.most_used_intent)
-                : "Aucune intention"}
+                : "Aucun sujet"}
             </p>
             <p className="mt-1 text-xs text-slate-500">
               {overview.most_used_intent_count} occurrence(s)
@@ -239,17 +239,17 @@ export default function AiAgentInsightsPage() {
 
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Providers IA
+                Moteurs utilisés
               </h2>
               <p className="text-sm text-slate-500">
-                Source utilisée pour générer les réponses.
+                Moteurs ayant généré les réponses.
               </p>
             </div>
           </div>
 
           {insights.provider_distribution.length === 0 ? (
             <p className="py-8 text-center text-slate-500">
-              Aucun provider détecté.
+              Aucun moteur utilisé.
             </p>
           ) : (
             <div className="space-y-4">

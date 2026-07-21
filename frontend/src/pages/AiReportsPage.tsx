@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Bot, FileText, Sparkles } from "lucide-react";
 import { generateAiReport, getAiReports } from "../api/aiApi";
 import type { AiPeriod, AiReport, AiReportType } from "../types/ai";
+import EmptyState from "../components/ui/EmptyState";
+import { useToast } from "../components/ui/ToastProvider";
 import { cleanAiResponse } from "../utils/aiResponse";
 const reportTypeLabels: Record<AiReportType, string> = {
   sales_report: "Rapport de ventes",
@@ -18,6 +20,7 @@ const periodLabels: Record<AiPeriod, string> = {
 };
 
 export default function AiReportsPage() {
+  const toast = useToast();
   const [reports, setReports] = useState<AiReport[]>([]);
   const [type, setType] = useState<AiReportType>("sales_report");
   const [period, setPeriod] = useState<AiPeriod>("monthly");
@@ -25,7 +28,6 @@ export default function AiReportsPage() {
 
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   async function loadReports() {
@@ -53,7 +55,6 @@ export default function AiReportsPage() {
 
     try {
       setGenerating(true);
-      setMessage("");
       setError("");
 
       const response = await generateAiReport({
@@ -61,11 +62,11 @@ export default function AiReportsPage() {
         period,
       });
 
-      setMessage(response.message ?? "Rapport IA généré avec succès.");
+      toast.success(response.message ?? "Rapport IA généré avec succès.");
       setSelectedReport(response.data);
       await loadReports();
     } catch {
-      setError("Impossible de générer le rapport IA.");
+      toast.error("Génération du rapport IA impossible.");
     } finally {
       setGenerating(false);
     }
@@ -90,22 +91,16 @@ export default function AiReportsPage() {
         </div>
       </div>
 
-      {message && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
-          {message}
-        </div>
-      )}
-
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
           {error}
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="space-y-6">
         <form
           onSubmit={handleGenerateReport}
-          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-white to-indigo-50/40 p-5 shadow-sm"
         >
           <div className="mb-5 flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -122,7 +117,7 @@ export default function AiReportsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Type de rapport
@@ -161,7 +156,7 @@ export default function AiReportsPage() {
 
             <button
               disabled={generating}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-300"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300 md:w-auto"
             >
               <Bot size={18} />
               {generating ? "Génération..." : "Générer le rapport"}
@@ -169,15 +164,17 @@ export default function AiReportsPage() {
           </div>
         </form>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-lg font-bold text-slate-900">
-            Rapport sélectionné
+            Rapport mis en avant
           </h2>
 
           {!selectedReport ? (
-            <p className="py-8 text-center text-slate-500">
-              Aucun rapport sélectionné.
-            </p>
+            <EmptyState
+              icon={<FileText size={22} />}
+              title="Aucun rapport disponible"
+              description="Générez un rapport pour afficher une première analyse commerciale."
+            />
           ) : (
             <div>
               <div className="mb-4 rounded-2xl bg-slate-50 p-4">
@@ -198,7 +195,7 @@ export default function AiReportsPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-white to-indigo-50/40 p-5 shadow-sm">
         <h2 className="mb-4 text-lg font-bold text-slate-900">
           Historique des rapports
         </h2>
@@ -208,9 +205,11 @@ export default function AiReportsPage() {
             Chargement des rapports...
           </p>
         ) : reports.length === 0 ? (
-          <p className="py-8 text-center text-slate-500">
-            Aucun rapport généré pour le moment.
-          </p>
+          <EmptyState
+            icon={<FileText size={22} />}
+            title="Aucun rapport généré"
+            description="Utilisez le formulaire ci-dessus pour créer votre première analyse."
+          />
         ) : (
           <div className="space-y-3">
             {reports.map((report) => (

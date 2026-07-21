@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Edit, FolderPlus, Search, Trash2 } from "lucide-react";
+import { Edit, FolderPlus, Loader2, Search, Trash2 } from "lucide-react";
 import {
   createCategory,
   deleteCategory,
@@ -7,31 +7,34 @@ import {
   updateCategory,
   type CategoryFormData,
 } from "../api/categoryApi";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import EmptyState from "../components/ui/EmptyState";
+import Modal from "../components/ui/Modal";
+import { useToast } from "../components/ui/ToastProvider";
 import type { Category } from "../types/category";
 
-const emptyForm: CategoryFormData = {
-  name: "",
-  description: "",
-};
+const emptyForm: CategoryFormData = { name: "", description: "" };
 
 export default function CategoriesPage() {
+  const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState<CategoryFormData>(emptyForm);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   async function loadCategories() {
     try {
       setLoading(true);
       setError("");
-
-      const data = await getCategories(search);
-      setCategories(data);
+      setCategories(await getCategories(search));
     } catch {
       setError("Impossible de charger les catégories.");
     } finally {
@@ -40,80 +43,79 @@ export default function CategoriesPage() {
   }
 
   useEffect(() => {
-    loadCategories();
+    void loadCategories();
   }, [search]);
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) {
-    const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  function openCreateModal() {
+    setEditingCategory(null);
+    setFormData(emptyForm);
+    setFormError("");
+    setIsFormOpen(true);
   }
 
-  function startEdit(category: Category) {
+  function openEditModal(category: Category) {
     setEditingCategory(category);
-
     setFormData({
       name: category.name,
       description: category.description ?? "",
     });
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setFormError("");
+    setIsFormOpen(true);
   }
 
-  function resetForm() {
+  function closeFormModal() {
+    if (saving) return;
+    setIsFormOpen(false);
     setEditingCategory(null);
     setFormData(emptyForm);
+    setFormError("");
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
 
     try {
       setSaving(true);
-      setError("");
-      setMessage("");
+      setFormError("");
 
-      if (editingCategory) {
-        const response = await updateCategory(editingCategory.id, formData);
-        setMessage(response.message ?? "Catégorie modifiée avec succès.");
-      } else {
-        const response = await createCategory(formData);
-        setMessage(response.message ?? "Catégorie créée avec succès.");
-      }
+      const response = editingCategory
+        ? await updateCategory(editingCategory.id, formData)
+        : await createCategory(formData);
 
-      resetForm();
+      toast.success(
+        response.message ??
+          (editingCategory
+            ? "Catégorie modifiée avec succès."
+            : "Catégorie créée avec succès.")
+      );
+      setIsFormOpen(false);
+      setEditingCategory(null);
+      setFormData(emptyForm);
       await loadCategories();
     } catch {
-      setError("Une erreur est survenue lors de l’enregistrement.");
+      setFormError("Une erreur est survenue lors de l’enregistrement.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(category: Category) {
-    const confirmed = window.confirm(
-      `Voulez-vous vraiment supprimer la catégorie "${category.name}" ?`
-    );
-
-    if (!confirmed) return;
+  async function handleDelete() {
+    if (!categoryToDelete) return;
 
     try {
-      setError("");
-      setMessage("");
-
-      const response = await deleteCategory(category.id);
-      setMessage(response.message ?? "Catégorie supprimée avec succès.");
-
+      setDeleting(true);
+      setDeleteError("");
+      const response = await deleteCategory(categoryToDelete.id);
+      toast.success(response.message ?? "Catégorie supprimée avec succès.");
+      setCategoryToDelete(null);
       await loadCategories();
     } catch {
-      setError(
+      setDeleteError(
         "Impossible de supprimer cette catégorie. Elle contient peut-être des produits."
       );
+      toast.error("Impossible de supprimer cette catégorie.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -127,97 +129,26 @@ export default function CategoriesPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm">
-          {categories.length} catégorie(s)
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="rounded-xl bg-indigo-50 px-5 py-3 text-sm font-semibold text-indigo-700">
+            {categories.length} catégorie(s)
+          </div>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+          >
+            <FolderPlus size={19} />
+            Ajouter une catégorie
+          </button>
         </div>
       </div>
 
-      {message && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
-          {message}
-        </div>
-      )}
-
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
           {error}
         </div>
       )}
-
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-      >
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-            <FolderPlus size={22} />
-          </div>
-
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              {editingCategory
-                ? "Modifier une catégorie"
-                : "Ajouter une catégorie"}
-            </h2>
-            <p className="text-sm text-slate-500">
-              Créez des catégories pour organiser vos produits.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Nom de la catégorie
-            </label>
-            <input
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-500"
-              placeholder="Ex: Électronique"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              className="min-h-12 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-500"
-              placeholder="Description de la catégorie..."
-            />
-          </div>
-        </div>
-
-        <div className="mt-5 flex gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-300"
-          >
-            {saving
-              ? "Enregistrement..."
-              : editingCategory
-              ? "Modifier"
-              : "Ajouter"}
-          </button>
-
-          {editingCategory && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              Annuler
-            </button>
-          )}
-        </div>
-      </form>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-5">
@@ -226,69 +157,79 @@ export default function CategoriesPage() {
               size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
             />
-
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 py-3 pl-11 pr-4 outline-none focus:border-indigo-500"
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 py-3 pl-11 pr-4 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
               placeholder="Rechercher une catégorie..."
             />
           </div>
         </div>
 
         {loading ? (
-          <p className="py-8 text-center text-slate-500">
+          <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+            <Loader2 size={18} className="animate-spin" />
             Chargement des catégories...
-          </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                   <th className="py-3">Nom</th>
                   <th className="py-3">Description</th>
                   <th className="py-3">Produits</th>
                   <th className="py-3 text-right">Actions</th>
                 </tr>
               </thead>
-
               <tbody>
                 {categories.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-500">
-                      Aucune catégorie trouvée.
+                    <td colSpan={4}>
+                      <EmptyState
+                        icon={<FolderPlus size={22} />}
+                        title="Aucune catégorie trouvée"
+                        description="Ajoutez une première catégorie pour organiser vos produits."
+                      />
                     </td>
                   </tr>
                 )}
-
                 {categories.map((category) => (
-                  <tr key={category.id} className="border-b border-slate-100">
+                  <tr
+                    key={category.id}
+                    className="border-b border-slate-100 transition-colors hover:bg-slate-50/80 last:border-0"
+                  >
                     <td className="py-4 font-semibold text-slate-900">
                       {category.name}
                     </td>
-
                     <td className="py-4 text-slate-600">
                       {category.description || "Aucune description"}
                     </td>
-
                     <td className="py-4">
                       <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600">
                         {category.products_count ?? 0} produit(s)
                       </span>
                     </td>
-
                     <td className="py-4">
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() => startEdit(category)}
-                          className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
+                          type="button"
+                          onClick={() => openEditModal(category)}
+                          className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                          title="Modifier"
+                          aria-label={`Modifier la catégorie ${category.name}`}
                         >
                           <Edit size={17} />
                         </button>
-
                         <button
-                          onClick={() => handleDelete(category)}
-                          className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                          type="button"
+                          onClick={() => {
+                            setDeleteError("");
+                            setCategoryToDelete(category);
+                          }}
+                          className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                          title="Supprimer"
+                          aria-label={`Supprimer la catégorie ${category.name}`}
                         >
                           <Trash2 size={17} />
                         </button>
@@ -301,6 +242,128 @@ export default function CategoriesPage() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={isFormOpen}
+        title={
+          editingCategory ? "Modifier une catégorie" : "Ajouter une catégorie"
+        }
+        onClose={closeFormModal}
+        closeDisabled={saving}
+        size="md"
+      >
+        <form onSubmit={handleSubmit}>
+          <p className="mb-5 text-sm text-slate-500">
+            {editingCategory
+              ? "Mettez à jour les informations de cette catégorie."
+              : "Créez une catégorie pour organiser vos produits."}
+          </p>
+          {formError && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+              {formError}
+            </div>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="category-name"
+                className="mb-2 block text-sm font-medium text-slate-700"
+              >
+                Nom de la catégorie
+              </label>
+              <input
+                id="category-name"
+                name="name"
+                value={formData.name}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                autoFocus
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                placeholder="Ex : Électronique"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="category-description"
+                className="mb-2 block text-sm font-medium text-slate-700"
+              >
+                Description
+              </label>
+              <textarea
+                id="category-description"
+                name="description"
+                value={formData.description}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                rows={4}
+                className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                placeholder="Description de la catégorie..."
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={closeFormModal}
+              disabled={saving}
+              className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving && <Loader2 size={17} className="animate-spin" />}
+              {saving
+                ? "Enregistrement..."
+                : editingCategory
+                ? "Enregistrer"
+                : "Ajouter"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={categoryToDelete !== null}
+        title="Supprimer cette catégorie ?"
+        description={
+          <>
+            La catégorie{" "}
+            <span className="font-semibold text-slate-900">
+              {categoryToDelete?.name}
+            </span>{" "}
+            sera définitivement supprimée. Cette opération peut échouer si elle
+            contient encore des produits.
+            {deleteError && (
+              <span className="mt-4 block rounded-xl border border-red-200 bg-red-50 p-3 font-medium text-red-700">
+                {deleteError}
+              </span>
+            )}
+          </>
+        }
+        onCancel={() => {
+          if (!deleting) {
+            setCategoryToDelete(null);
+            setDeleteError("");
+          }
+        }}
+        onConfirm={() => void handleDelete()}
+        loading={deleting}
+        confirmLabel="Supprimer"
+        destructive
+      />
     </div>
   );
 }

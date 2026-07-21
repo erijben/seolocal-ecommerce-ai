@@ -86,7 +86,7 @@ export default function AiStockForecastPage() {
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">
-            AI Stock Forecasting
+            Prévisions de stock IA
           </h1>
           <p className="mt-1 text-slate-500">
             Analyse prédictive du risque de rupture, de la demande future et des
@@ -143,42 +143,51 @@ export default function AiStockForecastPage() {
       </div>
 
 
-<div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
-  <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+<details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <summary className="cursor-pointer list-none font-semibold text-slate-700">
+    Détails techniques de la prévision
+    <span className="ml-2 text-xs font-normal text-slate-400">
+      moteur, version et période
+    </span>
+  </summary>
+  <div className="mt-5 flex flex-col justify-between gap-4 border-t border-slate-100 pt-5 lg:flex-row lg:items-center">
     <div>
       <h2 className="text-lg font-bold text-indigo-900">
-        Moteur prédictif ML
+        Méthode de prévision
       </h2>
       <p className="mt-1 text-sm text-indigo-700">
-        Les prévisions sont générées à partir des ventes journalières envoyées
-        par Laravel au microservice Python.
+        Les prévisions sont générées à partir des ventes journalières traitées
+        par le service de prévision de la plateforme.
       </p>
     </div>
 
     <div className="grid gap-3 sm:grid-cols-3">
       <div className="rounded-xl bg-white px-4 py-3">
-        <p className="text-xs font-medium text-slate-500">Provider</p>
+        <p className="text-xs font-medium text-slate-500">Moteur utilisé</p>
         <p className="mt-1 font-bold text-slate-900">
           {getForecastProviderLabel(forecast.provider)}
         </p>
       </div>
 
       <div className="rounded-xl bg-white px-4 py-3">
-        <p className="text-xs font-medium text-slate-500">Modèle</p>
+        <p className="text-xs font-medium text-slate-500">Version du modèle</p>
         <p className="mt-1 font-bold text-slate-900">
-          {forecast.model_version ?? "baseline"}
+          {forecast.model_version ??
+            (forecast.provider === "laravel_baseline"
+              ? "Prévision locale"
+              : "Non renseignée")}
         </p>
       </div>
 
       <div className="rounded-xl bg-white px-4 py-3">
-        <p className="text-xs font-medium text-slate-500">Horizon</p>
+        <p className="text-xs font-medium text-slate-500">Période de prévision</p>
         <p className="mt-1 font-bold text-slate-900">
           {forecast.forecast_horizon_days ?? 30} jours
         </p>
       </div>
     </div>
   </div>
-</div>
+</details>
 
 
       <div className="grid gap-6 xl:grid-cols-3">
@@ -242,9 +251,7 @@ export default function AiStockForecastPage() {
           </div>
 
           <div className="mt-5 rounded-2xl bg-indigo-50 p-4 text-sm leading-6 text-indigo-800">
-            Le système utilise une baseline prédictive basée sur la vitesse
-            moyenne de vente. Cette approche peut ensuite évoluer vers un modèle
-            ML plus avancé.
+            {getForecastMethodDescription(forecast.provider)}
           </div>
         </div>
       </div>
@@ -328,27 +335,49 @@ function ForecastCard({
   icon,
   variant,
 }: ForecastCardProps) {
-  const colorClass =
+  const styles =
     variant === "critical"
-      ? "bg-red-50 text-red-600"
+      ? {
+          card: "border-red-200 bg-red-50/50",
+          icon: "bg-red-100 text-red-700",
+          value: "text-red-950",
+        }
       : variant === "high"
-      ? "bg-orange-50 text-orange-600"
+      ? {
+          card: "border-orange-200 bg-orange-50/50",
+          icon: "bg-orange-100 text-orange-700",
+          value: "text-orange-950",
+        }
       : variant === "medium"
-      ? "bg-amber-50 text-amber-600"
+      ? {
+          card: "border-amber-200 bg-amber-50/50",
+          icon: "bg-amber-100 text-amber-700",
+          value: "text-amber-950",
+        }
       : variant === "low"
-      ? "bg-green-50 text-green-600"
-      : "bg-indigo-50 text-indigo-600";
+      ? {
+          card: "border-emerald-200 bg-emerald-50/50",
+          icon: "bg-emerald-100 text-emerald-700",
+          value: "text-emerald-950",
+        }
+      : {
+          card: "border-indigo-200 bg-indigo-50/40",
+          icon: "bg-indigo-100 text-indigo-700",
+          value: "text-indigo-950",
+        };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div
+      className={`rounded-2xl border p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${styles.card}`}
+    >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+          <p className={`mt-2 text-3xl font-bold ${styles.value}`}>{value}</p>
         </div>
 
         <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${colorClass}`}
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${styles.icon}`}
         >
           {icon}
         </div>
@@ -399,7 +428,7 @@ function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
     }
   />
   <MiniMetric
-    label="Modèle ML"
+    label="Modèle de prévision"
     value={getMlModelLabel(product.ml_model)}
   />
   <MiniMetric
@@ -414,7 +443,7 @@ function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
 
 {product.r2_score !== undefined && product.r2_score !== null && (
   <div className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-600">
-    Score R² :{" "}
+    Score de fiabilité du modèle :{" "}
     <span className="font-semibold text-slate-900">
       {product.r2_score}
     </span>
@@ -491,6 +520,18 @@ function getForecastProviderLabel(provider?: string | null) {
   };
 
   return labels[provider ?? "laravel_baseline"] ?? "Prévision locale";
+}
+
+function getForecastMethodDescription(provider?: string | null) {
+  if (provider === "python_scikit_learn") {
+    return "Les prévisions sont générées par le service ML Python à partir des ventes historiques, du stock actuel et de la demande estimée.";
+  }
+
+  if (provider === "laravel_baseline") {
+    return "Une prévision locale est utilisée temporairement lorsque le service de prévision n’est pas disponible.";
+  }
+
+  return "Les prévisions sont calculées à partir des données commerciales disponibles.";
 }
 
 function getConfidenceLabel(confidence?: string) {

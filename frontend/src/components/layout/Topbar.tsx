@@ -5,6 +5,11 @@ type TopbarProps = {
   onMenuClick: () => void;
 };
 
+const roleLabels: Record<string, string> = {
+  admin: "Administrateur",
+  manager: "Manager",
+};
+
 export default function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout } = useAuth();
 
@@ -26,7 +31,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         </button>
 
         <div>
-          <h2 className="font-semibold text-slate-900">Back-office</h2>
+          <h2 className="font-semibold text-slate-900">Espace de gestion</h2>
           <p className="text-sm text-slate-500">
             Gestion e-commerce intelligente
           </p>
@@ -36,7 +41,9 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
           <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
-          <p className="text-xs text-slate-500">{user?.role}</p>
+          <p className="text-xs text-slate-500">
+            {user?.role ? roleLabels[user.role] ?? user.role : ""}
+          </p>
         </div>
 
         <button

@@ -136,7 +136,7 @@ async function handleSubmit(e: FormEvent) {
                 Question à l’assistant
               </h2>
               <p className="text-sm text-slate-500">
-                L’agent IA analyse les données métier préparées par Laravel.
+                L’assistant IA analyse les données commerciales de la plateforme.
               </p>
             </div>
           </div>
@@ -155,7 +155,7 @@ async function handleSubmit(e: FormEvent) {
   className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-300"
 >
   <Send size={18} />
-  {loading ? "Analyse en cours..." : "Envoyer à l’agent IA"}
+  {loading ? "Analyse en cours..." : "Envoyer à l’assistant IA"}
 </button>
           </form>
         </div>
@@ -233,7 +233,7 @@ async function handleSubmit(e: FormEvent) {
                 {item.used_data && (
                   <details className="mb-3 rounded-xl border border-slate-200 bg-white p-4">
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">
-                      Données métier utilisées par l’agent
+                      Données utilisées par l’assistant
                     </summary>
 
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

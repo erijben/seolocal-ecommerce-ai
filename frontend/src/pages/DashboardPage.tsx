@@ -50,6 +50,17 @@ const statusLabels: Record<string, string> = {
   delivered: "Livrée",
   cancelled: "Annulée",
 };
+const orderStatusClasses: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  shipped: "bg-violet-100 text-violet-800",
+  delivered: "bg-emerald-100 text-emerald-800",
+  cancelled: "bg-red-100 text-red-800",
+};
+const productStatusLabels: Record<string, string> = {
+  active: "Actif",
+  inactive: "Inactif",
+};
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -98,7 +109,7 @@ const statusLabels: Record<string, string> = {
       setOrdersByStatus(ordersByStatusData);
       setLowStockProducts(lowStockData);
     } catch {
-      setError("Impossible de charger les données du dashboard.");
+      setError("Impossible de charger les données du tableau de bord.");
     } finally {
       setLoading(false);
     }
@@ -111,7 +122,7 @@ const statusLabels: Record<string, string> = {
   if (loading) {
     return (
       <div className="flex h-80 items-center justify-center rounded-2xl bg-white">
-        <p className="text-slate-500">Chargement du dashboard...</p>
+        <p className="text-slate-500">Chargement du tableau de bord...</p>
       </div>
     );
   }
@@ -127,7 +138,7 @@ const statusLabels: Record<string, string> = {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Tableau de bord</h1>
         <p className="mt-1 text-slate-500">
           Vue globale de l’activité commerciale.
         </p>
@@ -139,6 +150,7 @@ const statusLabels: Record<string, string> = {
           value={formatCurrency(stats?.total_revenue)}
           icon={<Wallet size={22} />}
           description="Commandes non annulées"
+          variant="ai"
         />
 
         <StatCard
@@ -146,6 +158,7 @@ const statusLabels: Record<string, string> = {
           value={stats?.orders_count ?? 0}
           icon={<ShoppingCart size={22} />}
           description="Total des commandes"
+          variant="info"
         />
 
         <StatCard
@@ -153,6 +166,7 @@ const statusLabels: Record<string, string> = {
           value={stats?.customers_count ?? 0}
           icon={<Users size={22} />}
           description="Clients enregistrés"
+          variant="success"
         />
 
         <StatCard
@@ -167,11 +181,14 @@ const statusLabels: Record<string, string> = {
           value={stats?.low_stock_count ?? 0}
           icon={<AlertTriangle size={22} />}
           description="Produits à surveiller"
+          variant={
+            (stats?.low_stock_count ?? 0) > 0 ? "danger" : "success"
+          }
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md xl:col-span-2">
           <div className="mb-5">
             <h2 className="text-lg font-bold text-slate-900">
               Ventes par période
@@ -194,7 +211,7 @@ const statusLabels: Record<string, string> = {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
           <h2 className="mb-4 text-lg font-bold text-slate-900">
             Commandes par statut
           </h2>
@@ -207,9 +224,13 @@ const statusLabels: Record<string, string> = {
             {ordersByStatus.map((item) => (
               <div
                 key={statusLabels[item.status] ?? item.status}
-                className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 transition hover:bg-white"
               >
-                <span className="capitalize text-slate-600">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    orderStatusClasses[item.status] ?? "bg-slate-100 text-slate-700"
+                  }`}
+                >
                   {statusLabels[item.status] ?? item.status}
                 </span>
                 <span className="font-bold text-slate-900">{item.count}</span>
@@ -220,7 +241,7 @@ const statusLabels: Record<string, string> = {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
           <h2 className="mb-4 text-lg font-bold text-slate-900">
             Produits les plus vendus
           </h2>
@@ -235,7 +256,7 @@ const statusLabels: Record<string, string> = {
             {topProducts.map((product) => (
               <div
                 key={product.product_id}
-                className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 transition hover:border-indigo-100 hover:bg-indigo-50/40"
               >
                 <div>
                   <p className="font-medium text-slate-900">
@@ -254,7 +275,7 @@ const statusLabels: Record<string, string> = {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
           <h2 className="mb-4 text-lg font-bold text-slate-900">
             Meilleurs clients
           </h2>
@@ -269,7 +290,7 @@ const statusLabels: Record<string, string> = {
             {topCustomers.map((customer) => (
               <div
                 key={customer.customer_id}
-                className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 transition hover:border-indigo-100 hover:bg-indigo-50/40"
               >
                 <div>
                   <p className="font-medium text-slate-900">
@@ -289,10 +310,15 @@ const statusLabels: Record<string, string> = {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-lg font-bold text-slate-900">
-          Produits à stock faible
-        </h2>
+      <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-white to-amber-50/40 p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="rounded-xl bg-amber-100 p-2 text-amber-700">
+            <AlertTriangle size={20} />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900">
+            Produits à stock faible
+          </h2>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -316,22 +342,27 @@ const statusLabels: Record<string, string> = {
               )}
 
               {lowStockProducts.map((product) => (
-                <tr key={product.id} className="border-b border-slate-100">
+                <tr
+                  key={product.id}
+                  className="border-b border-amber-100 transition hover:bg-amber-50/60"
+                >
                   <td className="py-3 font-medium text-slate-900">
                     {product.name}
                   </td>
                   <td className="py-3 text-slate-600">
                     {product.category?.name ?? "-"}
                   </td>
-                  <td className="py-3 text-red-600">
-                    {product.stock_quantity}
+                  <td className="py-3">
+                    <span className="inline-flex min-w-10 justify-center rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
+                      {product.stock_quantity}
+                    </span>
                   </td>
                   <td className="py-3 text-slate-600">
                     {product.stock_alert_threshold}
                   </td>
                   <td className="py-3">
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium capitalize text-slate-600">
-                      {product.status}
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                      {productStatusLabels[product.status] ?? product.status}
                     </span>
                   </td>
                 </tr>
