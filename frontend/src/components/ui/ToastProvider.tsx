@@ -46,27 +46,27 @@ const toastStyles: Record<
 > = {
   success: {
     icon: CheckCircle2,
-    className: "border-emerald-200 bg-emerald-50",
-    iconClassName: "text-emerald-600",
-    textClassName: "text-emerald-900",
+    className: "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/95",
+    iconClassName: "text-emerald-600 dark:text-emerald-400",
+    textClassName: "text-emerald-900 dark:text-emerald-100",
   },
   error: {
     icon: AlertCircle,
-    className: "border-red-200 bg-red-50",
-    iconClassName: "text-red-600",
-    textClassName: "text-red-900",
+    className: "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/95",
+    iconClassName: "text-red-600 dark:text-red-400",
+    textClassName: "text-red-900 dark:text-red-100",
   },
   info: {
     icon: Info,
-    className: "border-blue-200 bg-blue-50",
-    iconClassName: "text-blue-600",
-    textClassName: "text-blue-900",
+    className: "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/95",
+    iconClassName: "text-blue-600 dark:text-blue-400",
+    textClassName: "text-blue-900 dark:text-blue-100",
   },
   warning: {
     icon: TriangleAlert,
-    className: "border-amber-200 bg-amber-50",
-    iconClassName: "text-amber-600",
-    textClassName: "text-amber-900",
+    className: "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/95",
+    iconClassName: "text-amber-600 dark:text-amber-400",
+    textClassName: "text-amber-900 dark:text-amber-100",
   },
 };
 
@@ -141,7 +141,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={toast.id}
               role={toast.type === "error" ? "alert" : "status"}
-              className={`pointer-events-auto flex w-full items-start gap-3 rounded-2xl border p-4 shadow-xl [animation:toast-slide-in_220ms_ease-out] ${style.className}`}
+              className={`pointer-events-auto flex w-full items-start gap-3 rounded-2xl border p-4 shadow-xl [animation:toast-slide-in_220ms_ease-out] dark:shadow-black/30 ${style.className}`}
             >
               <Icon
                 size={21}
@@ -155,7 +155,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => removeToast(toast.id)}
-                className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100"
                 aria-label="Fermer la notification"
               >
                 <X size={17} />

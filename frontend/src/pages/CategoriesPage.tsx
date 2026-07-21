@@ -123,20 +123,20 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Catégories</h1>
-          <p className="mt-1 text-slate-500">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Catégories</h1>
+          <p className="mt-1 text-slate-500 dark:text-slate-400">
             Organisez les produits par catégories.
           </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="rounded-xl bg-indigo-50 px-5 py-3 text-sm font-semibold text-indigo-700">
+          <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/50 px-5 py-3 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
             {categories.length} catégorie(s)
           </div>
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm dark:shadow-black/20 transition hover:bg-indigo-700"
           >
             <FolderPlus size={19} />
             Ajouter une catégorie
@@ -145,29 +145,29 @@ export default function CategoriesPage() {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+        <div className="rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-4 text-sm font-medium text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-black/20">
         <div className="mb-5">
           <div className="relative max-w-md">
             <Search
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
             />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 py-3 pl-11 pr-4 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 py-3 pl-11 pr-4 bg-white text-slate-900 placeholder:text-slate-400 outline-none dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 transition focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-950/60"
               placeholder="Rechercher une catégorie..."
             />
           </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+          <div className="flex items-center justify-center gap-2 py-10 text-slate-500 dark:text-slate-400">
             <Loader2 size={18} className="animate-spin" />
             Chargement des catégories...
           </div>
@@ -175,7 +175,7 @@ export default function CategoriesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <th className="py-3">Nom</th>
                   <th className="py-3">Description</th>
                   <th className="py-3">Produits</th>
@@ -197,16 +197,16 @@ export default function CategoriesPage() {
                 {categories.map((category) => (
                   <tr
                     key={category.id}
-                    className="border-b border-slate-100 transition-colors hover:bg-slate-50/80 last:border-0"
+                    className="border-b border-slate-100 dark:border-slate-800/70 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70 last:border-0"
                   >
-                    <td className="py-4 font-semibold text-slate-900">
+                    <td className="py-4 font-semibold text-slate-900 dark:text-slate-100">
                       {category.name}
                     </td>
-                    <td className="py-4 text-slate-600">
+                    <td className="py-4 text-slate-600 dark:text-slate-300">
                       {category.description || "Aucune description"}
                     </td>
                     <td className="py-4">
-                      <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600">
+                      <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/50 px-3 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         {category.products_count ?? 0} produit(s)
                       </span>
                     </td>
@@ -215,7 +215,7 @@ export default function CategoriesPage() {
                         <button
                           type="button"
                           onClick={() => openEditModal(category)}
-                          className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 text-slate-500 dark:text-slate-400 transition hover:border-indigo-200 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-300"
                           title="Modifier"
                           aria-label={`Modifier la catégorie ${category.name}`}
                         >
@@ -227,7 +227,7 @@ export default function CategoriesPage() {
                             setDeleteError("");
                             setCategoryToDelete(category);
                           }}
-                          className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 text-slate-500 dark:text-slate-400 transition hover:border-red-200 dark:hover:border-red-700 hover:bg-red-50 dark:hover:bg-red-950/60 hover:text-red-600 dark:hover:text-red-300"
                           title="Supprimer"
                           aria-label={`Supprimer la catégorie ${category.name}`}
                         >
@@ -253,13 +253,13 @@ export default function CategoriesPage() {
         size="md"
       >
         <form onSubmit={handleSubmit}>
-          <p className="mb-5 text-sm text-slate-500">
+          <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
             {editingCategory
               ? "Mettez à jour les informations de cette catégorie."
               : "Créez une catégorie pour organiser vos produits."}
           </p>
           {formError && (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+            <div className="mb-5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-4 text-sm font-medium text-red-700 dark:text-red-300">
               {formError}
             </div>
           )}
@@ -267,7 +267,7 @@ export default function CategoriesPage() {
             <div>
               <label
                 htmlFor="category-name"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Nom de la catégorie
               </label>
@@ -282,7 +282,7 @@ export default function CategoriesPage() {
                   }))
                 }
                 autoFocus
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3 bg-white text-slate-900 placeholder:text-slate-400 outline-none dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 transition focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-950/60"
                 placeholder="Ex : Électronique"
                 required
               />
@@ -290,7 +290,7 @@ export default function CategoriesPage() {
             <div>
               <label
                 htmlFor="category-description"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Description
               </label>
@@ -305,7 +305,7 @@ export default function CategoriesPage() {
                   }))
                 }
                 rows={4}
-                className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                className="w-full resize-y rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3 bg-white text-slate-900 placeholder:text-slate-400 outline-none dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 transition focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-950/60"
                 placeholder="Description de la catégorie..."
               />
             </div>
@@ -315,7 +315,7 @@ export default function CategoriesPage() {
               type="button"
               onClick={closeFormModal}
               disabled={saving}
-              className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 px-5 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/70 disabled:opacity-60"
             >
               Annuler
             </button>
@@ -341,13 +341,13 @@ export default function CategoriesPage() {
         description={
           <>
             La catégorie{" "}
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
               {categoryToDelete?.name}
             </span>{" "}
             sera définitivement supprimée. Cette opération peut échouer si elle
             contient encore des produits.
             {deleteError && (
-              <span className="mt-4 block rounded-xl border border-red-200 bg-red-50 p-3 font-medium text-red-700">
+              <span className="mt-4 block rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-3 font-medium text-red-700 dark:text-red-300">
                 {deleteError}
               </span>
             )}

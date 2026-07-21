@@ -164,10 +164,10 @@ export default function KnowledgeBasePage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
             Base de connaissances IA
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Gérez les documents internes utilisés par l’assistant IA.
           </p>
         </div>
@@ -176,7 +176,7 @@ export default function KnowledgeBasePage() {
             type="button"
             onClick={() => void fetchDocuments()}
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm dark:shadow-black/20 transition hover:bg-slate-50 dark:hover:bg-slate-800/70 disabled:opacity-60"
           >
             <Database size={18} />
             Actualiser
@@ -184,7 +184,7 @@ export default function KnowledgeBasePage() {
           <button
             type="button"
             onClick={openUploadModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm dark:shadow-black/20 transition hover:bg-indigo-700"
           >
             <UploadCloud size={18} />
             Importer un PDF
@@ -193,7 +193,7 @@ export default function KnowledgeBasePage() {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+        <div className="rounded-2xl border border-red-100 dark:border-red-900/70 bg-red-50 dark:bg-red-950/50 p-4 text-sm font-medium text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
@@ -225,23 +225,23 @@ export default function KnowledgeBasePage() {
         />
       </div>
 
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
+      <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/70 bg-indigo-50 dark:bg-indigo-950/50 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-white p-3 text-indigo-600">
+            <div className="rounded-xl bg-white dark:bg-slate-900 p-3 text-indigo-600 dark:text-indigo-400">
               <BookOpen size={22} />
             </div>
             <div>
               <h2 className="font-bold text-indigo-950">
                 Utilisation des documents
               </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-indigo-800">
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-indigo-800 dark:text-indigo-200">
                 Les PDF sont extraits, découpés en passages puis indexés afin
                 que l’assistant puisse répondre à partir du contexte interne.
               </p>
             </div>
           </div>
-          <div className="grid shrink-0 grid-cols-3 gap-2 text-center text-xs font-semibold text-indigo-800 lg:ml-auto">
+          <div className="grid shrink-0 grid-cols-3 gap-2 text-center text-xs font-semibold text-indigo-800 dark:text-indigo-200 lg:ml-auto">
             <ProcessStep number="1" title="Import" />
             <ProcessStep number="2" title="Préparation" />
             <ProcessStep number="3" title="Assistant" />
@@ -249,23 +249,23 @@ export default function KnowledgeBasePage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-black/20">
         <div className="mb-5">
-          <h2 className="text-lg font-bold text-slate-900">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             Documents PDF de la base IA
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Documents disponibles pour enrichir les réponses de l’assistant.
           </p>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 rounded-2xl bg-slate-50 p-8 text-sm font-semibold text-slate-500">
+          <div className="flex items-center justify-center gap-2 rounded-2xl bg-slate-50 dark:bg-slate-950/60 p-8 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <Loader2 size={18} className="animate-spin" />
             Chargement des documents...
           </div>
         ) : documents.length === 0 ? (
-          <div className="rounded-2xl bg-slate-50">
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60">
             <EmptyState
               icon={<FileText size={22} />}
               title="Aucun document trouvé"
@@ -276,7 +276,7 @@ export default function KnowledgeBasePage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                <tr className="border-b border-slate-100 dark:border-slate-800/70 text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <th className="px-3 py-3">Document</th>
                   <th className="px-3 py-3">Type</th>
                   <th className="px-3 py-3">Statut</th>
@@ -290,18 +290,18 @@ export default function KnowledgeBasePage() {
                 {documents.map((document) => (
                   <tr
                     key={document.id}
-                    className="border-b border-slate-100 transition-colors hover:bg-slate-50/80 last:border-0"
+                    className="border-b border-slate-100 dark:border-slate-800/70 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70 last:border-0"
                   >
                     <td className="px-3 py-4">
-                      <p className="font-bold text-slate-900">
+                      <p className="font-bold text-slate-900 dark:text-slate-100">
                         {document.title}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         Ajouté le {formatDate(document.created_at)}
                       </p>
                     </td>
                     <td className="px-3 py-4">
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
                         {getTypeLabel(document.type)}
                       </span>
                     </td>
@@ -315,21 +315,21 @@ export default function KnowledgeBasePage() {
                     <td className="px-3 py-4">
                       <ExtractionBadge status={document.extraction_status} />
                     </td>
-                    <td className="px-3 py-4 font-bold text-slate-900">
+                    <td className="px-3 py-4 font-bold text-slate-900 dark:text-slate-100">
                       {getDocumentChunksCount(document)}
                     </td>
-                    <td className="px-3 py-4 text-slate-600">
+                    <td className="px-3 py-4 text-slate-600 dark:text-slate-300">
                       {document.original_filename ? (
                         <>
-                          <p className="font-medium text-slate-800">
+                          <p className="font-medium text-slate-800 dark:text-slate-200">
                             {document.original_filename}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {formatFileSize(document.file_size ?? 0)}
                           </p>
                         </>
                       ) : (
-                        <span className="text-slate-400">
+                        <span className="text-slate-400 dark:text-slate-500">
                           Ancien document texte
                         </span>
                       )}
@@ -341,7 +341,7 @@ export default function KnowledgeBasePage() {
                           setDeleteError(null);
                           setDocumentToDelete(document);
                         }}
-                        className="inline-flex items-center justify-center rounded-xl border border-red-100 bg-red-50 p-2 text-red-600 transition hover:border-red-200 hover:bg-red-100"
+                        className="inline-flex items-center justify-center rounded-xl border border-red-100 dark:border-red-900/70 bg-red-50 dark:bg-red-950/50 p-2 text-red-600 dark:text-red-400 transition hover:border-red-200 dark:hover:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/60"
                         title="Supprimer"
                         aria-label={`Supprimer le document ${document.title}`}
                       >
@@ -364,17 +364,17 @@ export default function KnowledgeBasePage() {
         size="md"
       >
         <form onSubmit={handleUpload}>
-          <p className="mb-5 text-sm leading-6 text-slate-500">
+          <p className="mb-5 text-sm leading-6 text-slate-500 dark:text-slate-400">
             Le texte sera extrait et indexé dans la base de connaissances.
           </p>
           {uploadError && (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+            <div className="mb-5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-4 text-sm font-medium text-red-700 dark:text-red-300">
               {uploadError}
             </div>
           )}
           <div className="space-y-4">
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-slate-700">
+              <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Titre du document
               </span>
               <input
@@ -382,11 +382,11 @@ export default function KnowledgeBasePage() {
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ex : Règles internes de réapprovisionnement"
                 autoFocus
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3 text-sm bg-white text-slate-900 placeholder:text-slate-400 outline-none dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 transition focus:border-indigo-400 dark:focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-950/60"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-slate-700">
+              <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Type
               </span>
               <input
@@ -395,23 +395,23 @@ export default function KnowledgeBasePage() {
                   setType(event.target.value as KnowledgeDocumentType)
                 }
                 placeholder="Ex : juridique, RH, produit..."
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3 text-sm bg-white text-slate-900 placeholder:text-slate-400 outline-none dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 transition focus:border-indigo-400 dark:focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-950/60"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-slate-700">
+              <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Fichier PDF
               </span>
               <input
                 type="file"
                 accept="application/pdf"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:bg-slate-100"
+                className="w-full rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 px-4 py-4 text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
               />
             </label>
             {file && (
-              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-                <span className="font-semibold text-slate-900">
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-950/60 p-3 text-sm text-slate-600 dark:text-slate-300">
+                <span className="font-semibold text-slate-900 dark:text-slate-100">
                   Fichier sélectionné :
                 </span>{" "}
                 {file.name} — {formatFileSize(file.size)}
@@ -423,7 +423,7 @@ export default function KnowledgeBasePage() {
               type="button"
               onClick={closeUploadModal}
               disabled={uploading}
-              className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 px-5 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/70 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Annuler
             </button>
@@ -445,12 +445,12 @@ export default function KnowledgeBasePage() {
         description={
           <>
             Le document{" "}
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
               {documentToDelete?.title}
             </span>{" "}
             et ses passages indexés seront définitivement supprimés.
             {deleteError && (
-              <span className="mt-4 block rounded-xl border border-red-200 bg-red-50 p-3 font-medium text-red-700">
+              <span className="mt-4 block rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-3 font-medium text-red-700 dark:text-red-300">
                 {deleteError}
               </span>
             )}
@@ -483,14 +483,14 @@ function StatCard({
   icon: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-black/20">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
-          <p className="mt-2 text-sm text-slate-500">{description}</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{description}</p>
         </div>
-        <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600">
+        <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 p-3 text-indigo-600 dark:text-indigo-400">
           {icon}
         </div>
       </div>
@@ -500,8 +500,8 @@ function StatCard({
 
 function ProcessStep({ number, title }: { number: string; title: string }) {
   return (
-    <div className="rounded-xl bg-white px-3 py-2">
-      <span className="mr-1 text-indigo-600">{number}.</span>
+    <div className="rounded-xl bg-white dark:bg-slate-900 px-3 py-2">
+      <span className="mr-1 text-indigo-600 dark:text-indigo-400">{number}.</span>
       {title}
     </div>
   );
@@ -514,7 +514,7 @@ function ExtractionBadge({
 }) {
   if (status === "success") {
     return (
-      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+      <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
         Succès
       </span>
     );
@@ -522,14 +522,14 @@ function ExtractionBadge({
 
   if (status === "failed") {
     return (
-      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
+      <span className="rounded-full bg-red-50 dark:bg-red-950/50 px-3 py-1 text-xs font-bold text-red-700 dark:text-red-300">
         Échec
       </span>
     );
   }
 
   return (
-    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+    <span className="rounded-full bg-amber-50 dark:bg-amber-950/60 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
       En attente
     </span>
   );

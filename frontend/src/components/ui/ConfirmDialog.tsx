@@ -33,13 +33,13 @@ export default function ConfirmDialog({
       closeDisabled={loading}
       size="sm"
     >
-      <div className="text-sm leading-6 text-slate-600">{description}</div>
+      <div className="text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</div>
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
         >
           {cancelLabel}
         </button>

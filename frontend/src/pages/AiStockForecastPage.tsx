@@ -65,7 +65,7 @@ export default function AiStockForecastPage() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center text-slate-500 dark:text-slate-400 shadow-sm">
         Chargement des prévisions de stock...
       </div>
     );
@@ -73,7 +73,7 @@ export default function AiStockForecastPage() {
 
   if (error || !forecast) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+      <div className="rounded-2xl border border-red-200 dark:border-red-900/70 bg-red-50 dark:bg-red-950/40 p-5 text-red-700 dark:text-red-300">
         {error || "Aucune donnée de prévision disponible."}
       </div>
     );
@@ -85,14 +85,14 @@ export default function AiStockForecastPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
             Prévisions de stock IA
           </h1>
-          <p className="mt-1 text-slate-500">
+          <p className="mt-1 text-slate-500 dark:text-slate-400">
             Analyse prédictive du risque de rupture, de la demande future et des
             quantités recommandées.
           </p>
-          <p className="mt-2 text-xs font-medium text-slate-400">
+          <p className="mt-2 text-xs font-medium text-slate-400 dark:text-slate-500">
             Fenêtre d’analyse : {forecast.analysis_window_days} jours — du{" "}
             {formatDate(forecast.analysis_start_date)} au{" "}
             {formatDate(forecast.analysis_end_date)}
@@ -102,7 +102,7 @@ export default function AiStockForecastPage() {
         <button
           type="button"
           onClick={loadForecast}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-800/70"
         >
           <RefreshCcw size={18} />
           Actualiser
@@ -143,35 +143,35 @@ export default function AiStockForecastPage() {
       </div>
 
 
-<details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-  <summary className="cursor-pointer list-none font-semibold text-slate-700">
+<details className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+  <summary className="cursor-pointer list-none font-semibold text-slate-700 dark:text-slate-200">
     Détails techniques de la prévision
-    <span className="ml-2 text-xs font-normal text-slate-400">
+    <span className="ml-2 text-xs font-normal text-slate-400 dark:text-slate-500">
       moteur, version et période
     </span>
   </summary>
-  <div className="mt-5 flex flex-col justify-between gap-4 border-t border-slate-100 pt-5 lg:flex-row lg:items-center">
+  <div className="mt-5 flex flex-col justify-between gap-4 border-t border-slate-100 dark:border-slate-800 pt-5 lg:flex-row lg:items-center">
     <div>
-      <h2 className="text-lg font-bold text-indigo-900">
+      <h2 className="text-lg font-bold text-indigo-900 dark:text-indigo-100">
         Méthode de prévision
       </h2>
-      <p className="mt-1 text-sm text-indigo-700">
+      <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-300">
         Les prévisions sont générées à partir des ventes journalières traitées
         par le service de prévision de la plateforme.
       </p>
     </div>
 
     <div className="grid gap-3 sm:grid-cols-3">
-      <div className="rounded-xl bg-white px-4 py-3">
-        <p className="text-xs font-medium text-slate-500">Moteur utilisé</p>
-        <p className="mt-1 font-bold text-slate-900">
+      <div className="rounded-xl bg-white dark:bg-slate-900 px-4 py-3">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Moteur utilisé</p>
+        <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">
           {getForecastProviderLabel(forecast.provider)}
         </p>
       </div>
 
-      <div className="rounded-xl bg-white px-4 py-3">
-        <p className="text-xs font-medium text-slate-500">Version du modèle</p>
-        <p className="mt-1 font-bold text-slate-900">
+      <div className="rounded-xl bg-white dark:bg-slate-900 px-4 py-3">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Version du modèle</p>
+        <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">
           {forecast.model_version ??
             (forecast.provider === "laravel_baseline"
               ? "Prévision locale"
@@ -179,9 +179,9 @@ export default function AiStockForecastPage() {
         </p>
       </div>
 
-      <div className="rounded-xl bg-white px-4 py-3">
-        <p className="text-xs font-medium text-slate-500">Période de prévision</p>
-        <p className="mt-1 font-bold text-slate-900">
+      <div className="rounded-xl bg-white dark:bg-slate-900 px-4 py-3">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Période de prévision</p>
+        <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">
           {forecast.forecast_horizon_days ?? 30} jours
         </p>
       </div>
@@ -191,17 +191,17 @@ export default function AiStockForecastPage() {
 
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm xl:col-span-2">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
               <TrendingUp size={22} />
             </div>
 
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 Produits à risque prioritaire
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Classement basé sur le stock actuel, le seuil d’alerte et la
                 vitesse de vente.
               </p>
@@ -215,17 +215,17 @@ export default function AiStockForecastPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
               <BarChart3 size={22} />
             </div>
 
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 Résumé décisionnel
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Lecture rapide des actions à mener.
               </p>
             </div>
@@ -250,21 +250,21 @@ export default function AiStockForecastPage() {
             />
           </div>
 
-          <div className="mt-5 rounded-2xl bg-indigo-50 p-4 text-sm leading-6 text-indigo-800">
+          <div className="mt-5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 p-4 text-sm leading-6 text-indigo-800 dark:text-indigo-200">
             {getForecastMethodDescription(forecast.provider)}
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-lg font-bold text-slate-900">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">
           Détail des prévisions par produit
         </h2>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
                 <th className="py-3 pr-4 font-semibold">Produit</th>
                 <th className="py-3 pr-4 font-semibold">Catégorie</th>
                 <th className="py-3 pr-4 font-semibold">Stock</th>
@@ -282,9 +282,9 @@ export default function AiStockForecastPage() {
               {forecast.products.map((product) => (
                 <tr
                   key={product.product_id}
-                  className="border-b border-slate-100 text-slate-700"
+                  className="border-b border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200"
                 >
-                  <td className="py-4 pr-4 font-semibold text-slate-900">
+                  <td className="py-4 pr-4 font-semibold text-slate-900 dark:text-slate-100">
                     {product.product_name}
                   </td>
                   <td className="py-4 pr-4">{product.category ?? "-"}</td>
@@ -306,7 +306,7 @@ export default function AiStockForecastPage() {
                       {getRiskLabel(product.risk_level)}
                     </span>
                   </td>
-                  <td className="py-4 pr-4 font-semibold text-indigo-700">
+                  <td className="py-4 pr-4 font-semibold text-indigo-700 dark:text-indigo-300">
                     {product.recommended_restock_quantity}
                   </td>
                   <td className="py-4">{product.recommended_action}</td>
@@ -338,32 +338,32 @@ function ForecastCard({
   const styles =
     variant === "critical"
       ? {
-          card: "border-red-200 bg-red-50/50",
-          icon: "bg-red-100 text-red-700",
-          value: "text-red-950",
+          card: "border-red-200 dark:border-red-900/70 bg-red-50/50 dark:bg-red-950/25",
+          icon: "bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300",
+          value: "text-red-950 dark:text-red-100",
         }
       : variant === "high"
       ? {
-          card: "border-orange-200 bg-orange-50/50",
-          icon: "bg-orange-100 text-orange-700",
-          value: "text-orange-950",
+          card: "border-orange-200 dark:border-orange-900/70 bg-orange-50/50 dark:bg-orange-950/25",
+          icon: "bg-orange-100 dark:bg-orange-950/70 text-orange-700 dark:text-orange-300",
+          value: "text-orange-950 dark:text-orange-100",
         }
       : variant === "medium"
       ? {
-          card: "border-amber-200 bg-amber-50/50",
-          icon: "bg-amber-100 text-amber-700",
-          value: "text-amber-950",
+          card: "border-amber-200 dark:border-amber-900/70 bg-amber-50/50 dark:bg-amber-950/25",
+          icon: "bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300",
+          value: "text-amber-950 dark:text-amber-100",
         }
       : variant === "low"
       ? {
-          card: "border-emerald-200 bg-emerald-50/50",
-          icon: "bg-emerald-100 text-emerald-700",
-          value: "text-emerald-950",
+          card: "border-emerald-200 dark:border-emerald-900/70 bg-emerald-50/50 dark:bg-emerald-950/25",
+          icon: "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300",
+          value: "text-emerald-950 dark:text-emerald-100",
         }
       : {
-          card: "border-indigo-200 bg-indigo-50/40",
-          icon: "bg-indigo-100 text-indigo-700",
-          value: "text-indigo-950",
+          card: "border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/30",
+          icon: "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300",
+          value: "text-indigo-950 dark:text-indigo-100",
         };
 
   return (
@@ -372,7 +372,7 @@ function ForecastCard({
     >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
           <p className={`mt-2 text-3xl font-bold ${styles.value}`}>{value}</p>
         </div>
 
@@ -383,18 +383,18 @@ function ForecastCard({
         </div>
       </div>
 
-      <p className="text-sm text-slate-500">{description}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
     </div>
   );
 }
 
 function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-4">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold text-slate-900">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100">
               {product.product_name}
             </h3>
             <span className={getRiskBadgeClass(product.risk_level)}>
@@ -402,13 +402,13 @@ function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
             </span>
           </div>
 
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {product.category} — stock actuel : {product.current_stock}, seuil :{" "}
             {product.stock_alert_threshold}
           </p>
         </div>
 
-        <div className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-indigo-700">
+        <div className="rounded-xl bg-white dark:bg-slate-900 px-4 py-3 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
           Réassort recommandé : {product.recommended_restock_quantity}
         </div>
       </div>
@@ -442,19 +442,19 @@ function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
 </div>
 
 {product.r2_score !== undefined && product.r2_score !== null && (
-  <div className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-600">
+  <div className="mt-3 rounded-xl bg-white dark:bg-slate-900 p-3 text-sm text-slate-600 dark:text-slate-300">
     Score de fiabilité du modèle :{" "}
-    <span className="font-semibold text-slate-900">
+    <span className="font-semibold text-slate-900 dark:text-slate-100">
       {product.r2_score}
     </span>
-    <span className="ml-2 text-xs text-slate-400">
+    <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
       Plus le score est proche de 1, plus le modèle explique bien les données
       historiques.
     </span>
   </div>
 )}
 
-      <p className="mt-4 rounded-xl bg-white p-3 text-sm text-slate-600">
+      <p className="mt-4 rounded-xl bg-white dark:bg-slate-900 p-3 text-sm text-slate-600 dark:text-slate-300">
         {product.recommended_action}
       </p>
     </div>
@@ -463,18 +463,18 @@ function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
 
 function MiniMetric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl bg-white p-3">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 font-bold text-slate-900">{value}</p>
+    <div className="rounded-xl bg-white dark:bg-slate-900 p-3">
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   );
 }
 
 function DecisionItem({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-bold text-slate-900">{value}</p>
+    <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60 p-4">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   );
 }
@@ -493,11 +493,11 @@ function getRiskLabel(risk: StockRiskLevel) {
 function getRiskBadgeClass(risk: StockRiskLevel) {
   const classes: Record<StockRiskLevel, string> = {
     critical:
-      "rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700",
-    high: "rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700",
+      "rounded-full bg-red-50 dark:bg-red-950/40 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300",
+    high: "rounded-full bg-orange-50 dark:bg-orange-950/40 px-3 py-1 text-xs font-semibold text-orange-700 dark:text-orange-300",
     medium:
-      "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700",
-    low: "rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700",
+      "rounded-full bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300",
+    low: "rounded-full bg-green-50 dark:bg-green-950/40 px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300",
   };
 
   return classes[risk];

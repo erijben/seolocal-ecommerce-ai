@@ -54,17 +54,17 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm dark:bg-black/70"
       onMouseDown={handleOverlayClick}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ${sizeClasses[size]}`}
+        className={`flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl transition-colors dark:bg-slate-900 dark:shadow-black/40 dark:ring-1 dark:ring-slate-800 ${sizeClasses[size]}`}
       >
-        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 px-6 py-5">
-          <h2 id={titleId} className="text-xl font-bold text-slate-900">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
+          <h2 id={titleId} className="text-xl font-bold text-slate-900 dark:text-white">
             {title}
           </h2>
           <button
@@ -72,12 +72,12 @@ export default function Modal({
             onClick={onClose}
             disabled={closeDisabled}
             aria-label="Fermer"
-            className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-y-auto p-6">{children}</div>
+        <div className="overflow-y-auto p-6 text-slate-700 dark:text-slate-200">{children}</div>
       </div>
     </div>
   );
