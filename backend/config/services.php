@@ -63,14 +63,17 @@ return [
         ),
     ],
 
-    'ollama' => [
+        'ollama' => [
         'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
         'model' => env('OLLAMA_MODEL', 'llama3.2:1b'),
         'temperature' => env('OLLAMA_TEMPERATURE', 0.2),
         'timeout' => env('OLLAMA_TIMEOUT', 120),
+        'report_timeout' => env('OLLAMA_REPORT_TIMEOUT', 120),
         'keep_alive' => env('OLLAMA_KEEP_ALIVE', '30m'),
         'num_predict' => env('OLLAMA_NUM_PREDICT', 240),
-'num_ctx' => env('OLLAMA_NUM_CTX', 1024),
+        'num_ctx' => env('OLLAMA_NUM_CTX', 1024),
+        'report_num_predict' => env('OLLAMA_REPORT_NUM_PREDICT', 220),
+        'report_num_ctx' => env('OLLAMA_REPORT_NUM_CTX', 4096),
     ],
 
 ];

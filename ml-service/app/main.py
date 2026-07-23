@@ -8,13 +8,16 @@ import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 #Le microservice ML reçoit l’historique des ventes journalières, transforme les données avec pandas, entraîne une régression linéaire avec scikit-learn pour prédire la demande future, puis calcule le risque de rupture et la quantité recommandée à réapprovisionner. Si les données sont insuffisantes, il utilise un fallback basé sur la moyenne mobile.
 #analyser les ventes journalières
 #prévoir la demande future
 #calculer le risque de rupture
 #recommander une quantité de réassort
+
+
+#Un service Python FastAPI avec scikit-learn analyse les ventes et le stock pour estimer les risques de rupture et recommander des quantités de réassort.
 
 
 
@@ -74,6 +77,9 @@ class ProductForecastResponse(BaseModel):
     ml_confidence: ConfidenceLevel
     trend: TrendDirection
     r2_score: float | None
+    mae: float | None = None
+    rmse: float | None = None
+    validation_days: int | None = None
 
 
 class StockForecastResponse(BaseModel):
@@ -138,6 +144,11 @@ def forecast_product(
     weekly_demand = daily_velocity * 7
 
     non_zero_sales_days = int((df["quantity"] > 0).sum())
+    evaluation = {
+    "mae": None,
+    "rmse": None,
+    "validation_days": None,
+}
 
     if total_sold == 0 or non_zero_sales_days < 2:
         projected_demand = daily_velocity * forecast_horizon_days
@@ -147,7 +158,7 @@ def forecast_product(
         score = None
     else:
         ml_result = run_linear_regression_forecast(df, forecast_horizon_days)
-
+        evaluation = evaluate_linear_regression(df)
         projected_demand = max(
             ml_result["projected_demand"],
             daily_velocity * forecast_horizon_days,
@@ -197,6 +208,9 @@ def forecast_product(
         ml_confidence=confidence,
         trend=trend,
         r2_score=score,
+        mae=evaluation["mae"],
+        rmse=evaluation["rmse"],
+        validation_days=evaluation["validation_days"],
     )
 
  #Cette fonction transforme les données JSON en tableau.
@@ -221,20 +235,99 @@ def build_daily_sales_dataframe(daily_sales: list[DailySale]) -> pd.DataFrame:
     return df
 
 
+
+def evaluate_linear_regression(
+    df: pd.DataFrame,
+) -> dict:
+    minimum_training_days = 14
+    minimum_total_days = 21
+
+    if len(df) < minimum_total_days:
+        return {
+            "mae": None,
+            "rmse": None,
+            "validation_days": None,
+        }
+
+    validation_days = max(7, ceil(len(df) * 0.20))
+    split_index = len(df) - validation_days
+
+    if split_index < minimum_training_days:
+        return {
+            "mae": None,
+            "rmse": None,
+            "validation_days": None,
+        }
+
+    training_df = df.iloc[:split_index]
+    validation_df = df.iloc[split_index:]
+
+    training_non_zero_days = int(
+        (training_df["quantity"] > 0).sum()
+    )
+
+    if training_non_zero_days < 2:
+        return {
+            "mae": None,
+            "rmse": None,
+            "validation_days": None,
+        }
+
+    model = LinearRegression()
+    model.fit(
+        training_df[["day_index", "day_of_week"]],
+        training_df["quantity"],
+    )
+
+    validation_predictions = model.predict(
+        validation_df[["day_index", "day_of_week"]]
+    )
+    validation_predictions = np.clip(
+        validation_predictions,
+        0,
+        None,
+    )
+
+    actual_values = validation_df["quantity"]
+
+    mae = float(
+        mean_absolute_error(
+            actual_values,
+            validation_predictions,
+        )
+    )
+
+    rmse = float(
+        np.sqrt(
+            mean_squared_error(
+                actual_values,
+                validation_predictions,
+            )
+        )
+    )
+
+    return {
+        "mae": round(mae, 3),
+        "rmse": round(rmse, 3),
+        "validation_days": validation_days,
+    }
+
+
+
 def run_linear_regression_forecast(
     df: pd.DataFrame,
     forecast_horizon_days: int,
 ) -> dict:
     features = df[["day_index", "day_of_week"]] #les données utilisées pour prédire
     target = df["quantity"] #ce qu’on veut prédire
- 
-    #Entraînement du modèle 
+
+    #Entraînement du modèle
     model = LinearRegression() #On crée un modèle de régression linéaire
     model.fit(features, target)  #Les features, ce sont les données utilisées pour prédire.
     #Le target, c’est ce qu’on veut prédire. combien d’unités seront vendues par jour
-    
+
     train_predictions = model.predict(features)
- 
+
  #Le modèle regarde les anciennes ventes
 #et essaie de trouver une tendance mathématique.
 

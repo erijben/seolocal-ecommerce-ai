@@ -141,6 +141,9 @@ export type AiStockForecastProduct = {
   ml_confidence?: MlConfidence | string;
   trend?: TrendDirection | string;
   r2_score?: number | null;
+  mae?: number | null;
+rmse?: number | null;
+validation_days?: number | null;
 };
 
 export type AiStockForecast = {

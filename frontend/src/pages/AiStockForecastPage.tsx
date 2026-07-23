@@ -444,6 +444,41 @@ function RiskProductCard({ product }: { product: AiStockForecastProduct }) {
 {product.r2_score !== undefined && product.r2_score !== null && (
   <div className="mt-3 rounded-xl bg-white dark:bg-slate-900 p-3 text-sm text-slate-600 dark:text-slate-300">
     Score de fiabilité du modèle :{" "}
+    {product.mae !== undefined &&
+  product.mae !== null &&
+  product.rmse !== undefined &&
+  product.rmse !== null && (
+    <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-blue-900/60 dark:bg-blue-950/30">
+      <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+        Validation temporelle
+      </p>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <MiniMetric
+          label="Erreur moyenne MAE"
+          value={`${product.mae.toLocaleString("fr-FR")} unité(s)/jour`}
+        />
+        <MiniMetric
+          label="Erreur RMSE"
+          value={`${product.rmse.toLocaleString("fr-FR")} unité(s)/jour`}
+        />
+
+        <MiniMetric
+          label="Période de validation"
+          value={
+            product.validation_days
+              ? `${product.validation_days} jours`
+              : "N/A"
+          }
+        />
+      </div>
+
+      <p className="mt-3 text-xs leading-5 text-blue-700 dark:text-blue-300">
+        Ces erreurs sont mesurées sur les jours les plus récents, exclus de
+        l’entraînement utilisé pour cette évaluation.
+      </p>
+    </div>
+  )}
     <span className="font-semibold text-slate-900 dark:text-slate-100">
       {product.r2_score}
     </span>

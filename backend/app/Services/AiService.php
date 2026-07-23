@@ -95,41 +95,442 @@ class AiService
         ];
     }
 
-    public function generateReport(string $type, string $period = 'monthly'): string
-    {
-        $businessData = [
-            'stats' => $this->dashboardService->getStats(),
-            'sales_by_period' => $this->dashboardService->getSalesByPeriod($period),
-            'top_products' => $this->dashboardService->getTopProducts(5),
-            'top_customers' => $this->dashboardService->getTopCustomers(5),
-            'orders_by_status' => $this->dashboardService->getOrdersByStatus(),
-            'low_stock_products' => $this->dashboardService->getLowStockProducts(),
-        ];
+  /**
+ * @return array{status: 'ok'|'error', provider: string, content: ?string}
+ */
+public function generateReport(
+    string $type,
+    string $period = 'monthly'
+): array {
+    $requestId = (string) Str::uuid();
+    $provider = 'none';
 
-        $response = $this->providerManager->chat([
-            [
-                'role' => 'system',
-                'content' => $this->reportSystemPrompt(),
-            ],
-            [
-                'role' => 'user',
-                'content' => "
-Type de rapport demandé : {$type}
-Période : {$period}
+    if (config('services.ai.provider') === 'ollama') {
+        $reportTimeout = (int) config(
+            'services.ollama.report_timeout',
+            120
+        );
 
-Données disponibles :
-" . json_encode($businessData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
-            ],
-        ], [
-            'purpose' => 'report',
+        @set_time_limit(($reportTimeout * 3) + 30);
+    }
+
+    Log::info('AI report generation started', [
+        'request_id' => $requestId,
+        'type' => $type,
+        'period' => $period,
+    ]);
+
+    $businessData = [
+        'stats' => $this->dashboardService->getStats(),
+        'sales_by_period' => $this->dashboardService->getSalesByPeriod($period),
+        'top_products' => $this->dashboardService->getTopProducts(5),
+        'top_customers' => $this->dashboardService->getTopCustomers(5),
+        'orders_by_status' => $this->dashboardService->getOrdersByStatus(),
+        'low_stock_products' => $this->dashboardService->getLowStockProducts(),
+    ];
+
+    $reportData = $this->buildReportTemplate(
+        $businessData,
+        $type,
+        $period
+    );
+
+   $summary = [
+    'content' => $reportData['summary_content'],
+];
+
+$salesAnalysis = [
+    'content' => $reportData['sales_analysis_content'],
+];
+
+$recommendations = $this->generateReportNarrative(
+    'Choisis les trois actions prioritaires à partir des données fournies.',
+    $reportData['recommendations_context'],
+    $requestId
+);
+
+if ($recommendations === null) {
+    Log::warning('AI report recommendation selection failed', [
+        'request_id' => $requestId,
+        'reason' => 'provider_unavailable',
+    ]);
+
+    return [
+        'status' => 'error',
+        'provider' => $provider,
+        'content' => null,
+    ];
+}
+
+$recommendationsContent = $this->renderReportRecommendations(
+    $recommendations['content']
+);
+
+if ($recommendationsContent === null) {
+    Log::warning('AI report recommendation selection failed', [
+        'request_id' => $requestId,
+        'reason' => 'invalid_action_codes',
+        'provider' => $recommendations['provider'],
+    ]);
+
+    return [
+        'status' => 'error',
+        'provider' => $recommendations['provider'],
+        'content' => null,
+    ];
+}
+
+$provider = $recommendations['provider'];
+
+    $content = str_replace(
+        [
+            '{{SUMMARY}}',
+            '{{SALES_ANALYSIS}}',
+            '{{RECOMMENDATIONS}}',
+        ],
+        [
+            $summary['content'],
+            $salesAnalysis['content'],
+            $recommendationsContent,
+        ],
+        $reportData['template']
+    );
+
+    $content = $this->cleanAssistantAnswerText($content);
+
+    if ($content === '' || str_contains($content, '{{')) {
+        Log::warning('AI report assembly failed', [
+            'request_id' => $requestId,
+            'provider' => $provider,
         ]);
 
-        if (! is_string($response['answer'] ?? null)) {
-            return "Le rapport n'a pas pu être généré pour le moment.";
+        return [
+            'status' => 'error',
+            'provider' => $provider,
+            'content' => null,
+        ];
+    }
+
+    Log::info('AI report generation finished', [
+        'request_id' => $requestId,
+        'provider' => $provider,
+        'content_length' => mb_strlen($content),
+    ]);
+
+    return [
+        'status' => 'ok',
+        'provider' => $provider,
+        'content' => $content,
+    ];
+}
+/**
+ * @return array{
+ *     template: string,
+ *     summary_content: string,
+ *     sales_analysis_content: string,
+ *     recommendations_context: string
+ * }
+ */
+private function buildReportTemplate(
+    array $businessData,
+    string $type,
+    string $period
+): array {
+    $reportLabels = [
+        'sales_report' => 'Rapport de ventes',
+        'stock_recommendation' => 'Recommandations de stock',
+        'customer_analysis' => 'Analyse des clients',
+        'marketing_recommendation' => 'Recommandations marketing',
+    ];
+
+    $reportFocus = [
+        'sales_report' => 'Évolution du chiffre d’affaires et activité commerciale',
+        'stock_recommendation' => 'Produits à surveiller et priorités de réapprovisionnement',
+        'customer_analysis' => 'Clients les plus importants et concentration des ventes',
+        'marketing_recommendation' => 'Produits et segments clients à valoriser',
+    ];
+
+    $periodLabels = [
+        'daily' => 'journalière',
+        'weekly' => 'hebdomadaire',
+        'monthly' => 'mensuelle',
+        'yearly' => 'annuelle',
+    ];
+
+    $formatAmount = static function ($value): string {
+        return is_numeric($value)
+            ? number_format((float) $value, 2, ',', ' ') . ' €'
+            : 'Donnée non disponible';
+    };
+
+    $formatNumber = static function ($value): string {
+        return is_numeric($value)
+            ? number_format((float) $value, 0, ',', ' ')
+            : 'Donnée non disponible';
+    };
+
+    $stats = $businessData['stats'] ?? [];
+
+    $salesRecords = collect($businessData['sales_by_period'] ?? [])->values();
+
+$salesByPeriod = $salesRecords
+    ->take(-12)
+    ->map(function ($sale) use ($formatAmount, $formatNumber) {
+        $label = data_get($sale, 'period', 'Donnée non disponible');
+        $revenue = $formatAmount(data_get($sale, 'total_sales'));
+        $orders = $formatNumber(data_get($sale, 'orders_count'));
+
+        return "- {$label} : {$revenue}, {$orders} commande(s)";
+    })
+    ->implode("\n");
+
+$recentSalesTrend = 'Donnée non disponible';
+
+if ($salesRecords->count() >= 2) {
+    $previousSale = $salesRecords->get($salesRecords->count() - 2);
+    $latestSale = $salesRecords->last();
+
+    $previousRevenue = data_get($previousSale, 'total_sales');
+    $latestRevenue = data_get($latestSale, 'total_sales');
+
+    if (is_numeric($previousRevenue) && is_numeric($latestRevenue)) {
+        $previousRevenue = (float) $previousRevenue;
+        $latestRevenue = (float) $latestRevenue;
+        $difference = $latestRevenue - $previousRevenue;
+
+        $direction = match (true) {
+            $difference > 0 => 'hausse',
+            $difference < 0 => 'baisse',
+            default => 'stabilité',
+        };
+
+        $percentage = $previousRevenue != 0.0
+            ? abs(($difference / $previousRevenue) * 100)
+            : null;
+
+        $percentageLabel = $percentage !== null
+            ? ' (' . number_format($percentage, 1, ',', ' ') . ' %)'
+            : '';
+
+        $latestPeriod = data_get(
+            $latestSale,
+            'period',
+            'dernière période disponible'
+        );
+
+        $previousPeriod = data_get(
+            $previousSale,
+            'period',
+            'période précédente'
+        );
+
+       $comparisonFrequency = $periodLabels[$period] ?? 'périodique';
+       $recentSalesTrend = "Comparaison {$comparisonFrequency} entre "
+    . "{$latestPeriod} et {$previousPeriod} : "
+    . $formatAmount($latestRevenue)
+    . " sur {$latestPeriod}, soit une {$direction} de "
+    . $formatAmount(abs($difference))
+    . $percentageLabel
+    . " par rapport à {$previousPeriod}.";
+    }
+}
+
+    $topProducts = collect($businessData['top_products'] ?? [])
+        ->take(5)
+        ->map(function ($product) use ($formatAmount, $formatNumber) {
+            $name = data_get($product, 'product_name', 'Donnée non disponible');
+            $quantity = $formatNumber(data_get($product, 'total_sold'));
+            $revenue = $formatAmount(data_get($product, 'total_revenue'));
+
+            return "- {$name} : {$quantity} unité(s) vendue(s), {$revenue} de chiffre d’affaires";
+        })
+        ->implode("\n");
+
+    $topCustomers = collect($businessData['top_customers'] ?? [])
+        ->take(5)
+        ->map(function ($customer) use ($formatAmount, $formatNumber) {
+            $name = trim(
+                (string) data_get($customer, 'first_name', '')
+                . ' '
+                . (string) data_get($customer, 'last_name', '')
+            );
+
+            if ($name === '') {
+                $name = 'Donnée non disponible';
+            }
+
+            $orders = $formatNumber(data_get($customer, 'orders_count'));
+            $spent = $formatAmount(data_get($customer, 'total_spent'));
+
+            return "- {$name} : {$orders} commande(s), {$spent} dépensés";
+        })
+        ->implode("\n");
+
+    $ordersByStatus = collect($businessData['orders_by_status'] ?? [])
+        ->map(function ($item) use ($formatNumber) {
+            $status = strtolower((string) data_get($item, 'status', ''));
+
+            $statusLabel = match ($status) {
+                'pending' => 'En attente',
+                'confirmed' => 'Confirmées',
+                'shipped' => 'Expédiées',
+                'delivered' => 'Livrées',
+                'cancelled' => 'Annulées',
+                default => $status !== '' ? ucfirst($status) : 'Donnée non disponible',
+            };
+
+            return "- {$statusLabel} : "
+                . $formatNumber(data_get($item, 'count'))
+                . " commande(s)";
+        })
+        ->implode("\n");
+
+    $lowStockProducts = collect($businessData['low_stock_products'] ?? [])
+        ->take(8)
+        ->map(function ($product) use ($formatNumber) {
+            $name = data_get($product, 'name', 'Donnée non disponible');
+            $stock = $formatNumber(data_get($product, 'stock_quantity'));
+            $threshold = $formatNumber(data_get($product, 'stock_alert_threshold'));
+            $category = data_get($product, 'category.name');
+
+            $categoryLabel = is_string($category) && $category !== ''
+                ? ", catégorie {$category}"
+                : '';
+
+            return "- {$name}{$categoryLabel} : stock actuel {$stock}, seuil d’alerte {$threshold}";
+        })
+        ->implode("\n");
+
+        $restockRecommendations = collect($businessData['low_stock_products'] ?? [])
+    ->take(8)
+    ->map(function ($product) use ($formatNumber) {
+        $name = data_get($product, 'name', 'Produit non renseigné');
+        $stock = data_get($product, 'stock_quantity');
+        $threshold = data_get($product, 'stock_alert_threshold');
+
+        if (! is_numeric($stock) || ! is_numeric($threshold)) {
+            return "- Vérifier le besoin de réapprovisionnement de {$name}.";
         }
 
-        return $this->cleanAssistantAnswerText($response['answer']);
-    }
+        $minimumRestock = max(
+            0,
+            (int) ceil((float) $threshold - (float) $stock)
+        );
+
+        if ($minimumRestock === 0) {
+            return null;
+        }
+
+        return "- Réapprovisionner {$name} d’au moins "
+            . $formatNumber($minimumRestock)
+            . " unité(s) pour revenir au seuil d’alerte.";
+    })
+    ->filter()
+    ->implode("\n");
+
+
+
+    $template = implode("\n", [
+        '# ' . ($reportLabels[$type] ?? 'Rapport commercial'),
+        '',
+        '_Objectif : '
+            . ($reportFocus[$type] ?? 'Analyse de l’activité commerciale')
+            . '_',
+        '_Regroupement des ventes : '
+            . ($periodLabels[$period] ?? 'Donnée non disponible')
+            . '_',
+        '',
+        '## 1. Résumé exécutif',
+        '',
+        '{{SUMMARY}}',
+        '',
+        '## 2. Chiffres clés',
+        '',
+        '- **Chiffre d’affaires cumulé hors commandes annulées :** '
+            . $formatAmount(data_get($stats, 'total_revenue')),
+        '- **Nombre total de commandes :** '
+            . $formatNumber(data_get($stats, 'orders_count')),
+        '- **Nombre de clients :** '
+            . $formatNumber(data_get($stats, 'customers_count')),
+        '- **Nombre de produits :** '
+            . $formatNumber(data_get($stats, 'products_count')),
+        '- **Produits en stock faible :** '
+            . $formatNumber(data_get($stats, 'low_stock_count')),
+        '',
+        '## 3. Analyse des ventes',
+        '',
+        '{{SALES_ANALYSIS}}',
+        '',
+        '### Données de ventes par période',
+        '',
+        $salesByPeriod !== '' ? $salesByPeriod : 'Donnée non disponible',
+        '',
+        '## 4. Produits les plus performants',
+        '',
+        $topProducts !== '' ? $topProducts : 'Donnée non disponible',
+        '',
+        '## 5. Clients importants',
+        '',
+        $topCustomers !== '' ? $topCustomers : 'Donnée non disponible',
+        '',
+        '## 6. Points d’attention',
+        '',
+        '### Commandes par statut',
+        '',
+        $ordersByStatus !== '' ? $ordersByStatus : 'Donnée non disponible',
+        '',
+        '### Produits sous leur seuil d’alerte',
+        '',
+        $lowStockProducts !== '' ? $lowStockProducts : 'Donnée non disponible',
+        '',
+        '## 7. Recommandations concrètes',
+        '',
+        '{{RECOMMENDATIONS}}',
+        '',
+        '### Réapprovisionnements minimaux calculés',
+        '',
+        $restockRecommendations !== ''
+            ? $restockRecommendations
+            : '- Aucun réapprovisionnement immédiat calculable.',
+    ]);
+$recommendationsContext = implode("\n", [
+    'Réapprovisionnements calculés :',
+    $restockRecommendations !== ''
+        ? $restockRecommendations
+        : 'Aucun réapprovisionnement immédiat calculable.',
+    '',
+    'Commandes par statut :',
+    $ordersByStatus !== ''
+        ? $ordersByStatus
+        : 'Donnée non disponible.',
+    '',
+    'Clients importants :',
+    $topCustomers !== ''
+        ? $topCustomers
+        : 'Donnée non disponible.',
+]);
+
+
+$summaryContent = implode("\n\n", [
+    'Le chiffre d’affaires cumulé hors commandes annulées s’élève à '
+        . $formatAmount(data_get($stats, 'total_revenue'))
+        . ' pour '
+        . $formatNumber(data_get($stats, 'orders_count'))
+        . ' commande(s) enregistrée(s).',
+    'Tendance récente vérifiée : ' . $recentSalesTrend,
+]);
+
+$salesAnalysisContent = implode("\n\n", [
+    $recentSalesTrend,
+    'Les montants et volumes détaillés par période sont présentés ci-dessous.',
+]);
+return [
+    'template' => $template,
+    'summary_content' => $summaryContent,
+    'sales_analysis_content' => $salesAnalysisContent,
+    'recommendations_context' => $recommendationsContext,
+];
+}
 
     private function finalAnswerSystemPrompt(): string
     {
@@ -252,17 +653,144 @@ Réponse :
         return implode("\n\n---\n\n", $parts);
     }
 
-    private function reportSystemPrompt(): string
-    {
-        return "
-Tu es un assistant IA spécialisé dans l'analyse commerciale e-commerce.
 
-Tu dois générer un rapport professionnel à partir des données fournies.
-N'invente aucun chiffre.
-Réponds en français.
-Donne des recommandations concrètes.
-";
+
+    private function renderReportRecommendations(string $response): ?string
+{
+    $labels = [
+        'PRIORITIZE_RESTOCK' =>
+            '- Prioriser le réapprovisionnement des produits actuellement sous leur seuil d’alerte.',
+        'FOLLOW_ORDER_STATUSES' =>
+            '- Assurer un suivi opérationnel des commandes selon leur statut et traiter en priorité celles qui nécessitent une action.',
+        'ANALYZE_CANCELLATIONS' =>
+            '- Examiner les commandes annulées afin d’identifier les points opérationnels à corriger.',
+        'RETAIN_IMPORTANT_CUSTOMERS' =>
+            '- Préparer une action de fidélisation ciblée pour les clients importants identifiés.',
+    ];
+
+ $normalizedResponse = preg_replace(
+    '/[^A-Z]+/',
+    '_',
+    strtoupper($response)
+) ?? '';
+
+$codePositions = [];
+
+foreach (array_keys($labels) as $code) {
+    $position = strpos($normalizedResponse, $code);
+
+    if ($position !== false) {
+        $codePositions[$code] = $position;
     }
+}
+
+asort($codePositions);
+
+$selectedCodes = array_keys($codePositions);
+
+    if (count($selectedCodes) < 3) {
+        return null;
+    }
+
+    $selectedCodes = array_slice($selectedCodes, 0, 3);
+
+    return implode(
+        "\n",
+        array_map(
+            static fn (string $code): string => $labels[$code],
+            $selectedCodes
+        )
+    );
+}
+
+
+
+
+private function reportSystemPrompt(): string
+{
+   return <<<'PROMPT'
+Tu es un moteur de priorisation pour un rapport e-commerce.
+
+Choisis exactement trois codes distincts parmi les codes suivants :
+
+PRIORITIZE_RESTOCK
+- Priorité au suivi et au réapprovisionnement du stock.
+
+FOLLOW_ORDER_STATUSES
+- Priorité au traitement opérationnel des commandes selon leur statut.
+
+ANALYZE_CANCELLATIONS
+- Priorité à l’examen des commandes annulées.
+
+RETAIN_IMPORTANT_CUSTOMERS
+- Priorité à la fidélisation des clients importants.
+
+Règles obligatoires :
+- Utilise uniquement les situations indiquées dans le contexte.
+- Classe les trois actions choisies de la plus prioritaire à la moins prioritaire.
+- Retourne uniquement les trois codes.
+- Écris un seul code par ligne.
+- N’ajoute aucun titre, phrase, puce, chiffre, commentaire ou explication.
+PROMPT;
+}
+
+/**
+ * @return array{
+ *     summary: string,
+ *     sales_analysis: string,
+ *     recommendations: string
+ * }|null
+ */
+
+/**
+ * @return array{provider: string, content: string}|null
+ */
+private function generateReportNarrative(
+    string $task,
+    string $context,
+    string $requestId
+): ?array {
+    $response = $this->providerManager->chat([
+        [
+            'role' => 'system',
+            'content' => $this->reportSystemPrompt(),
+        ],
+        [
+            'role' => 'user',
+            'content' => implode("\n", [
+                'Tâche : ' . $task,
+                '',
+                'Contexte autorisé :',
+                $context,
+            ]),
+        ],
+    ], [
+        'purpose' => 'report',
+        'request_id' => $requestId,
+    ]);
+
+    $provider = (string) ($response['provider'] ?? 'none');
+    $answer = $response['answer'] ?? null;
+
+    if (
+        $provider === 'none'
+        || ! is_string($answer)
+        || trim($answer) === ''
+    ) {
+        return null;
+    }
+
+    $content = $this->cleanAssistantAnswerText($answer);
+
+    if ($content === '') {
+        return null;
+    }
+
+    return [
+        'provider' => $provider,
+        'content' => $content,
+    ];
+}
 
     private function hasUsableToolData(array $toolResults): bool
     {

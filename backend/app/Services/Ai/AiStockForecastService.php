@@ -297,6 +297,9 @@ class AiStockForecastService
                 'ml_confidence' => 'low',
                 'trend' => 'stable',
                 'r2_score' => null,
+                'mae' => null,
+                'rmse' => null,
+                'validation_days' => null,
             ];
         })
             ->sortBy(function (array $item) {

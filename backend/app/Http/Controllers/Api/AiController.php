@@ -27,16 +27,27 @@ class AiController extends Controller
 
         $period = $validated['period'] ?? 'monthly';
 
-        $content = $this->aiService->generateReport(
+        $result = $this->aiService->generateReport(
             $validated['type'],
             $period
         );
+
+        if (
+            ($result['status'] ?? 'error') !== 'ok'
+            || ! is_string($result['content'] ?? null)
+            || trim($result['content']) === ''
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Le moteur IA est temporairement indisponible. Le rapport n’a pas été enregistré.',
+            ], 503);
+        }
 
         $report = AiReport::create([
             'user_id' => $request->user()->id,
             'title' => $this->getReportTitle($validated['type']),
             'type' => $validated['type'],
-            'content' => $content,
+            'content' => $result['content'],
             'generated_at' => now(),
         ]);
 

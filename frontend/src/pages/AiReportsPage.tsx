@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 import { Bot, FileText, Sparkles } from "lucide-react";
 import { generateAiReport, getAiReports } from "../api/aiApi";
 import type { AiPeriod, AiReport, AiReportType } from "../types/ai";
 import EmptyState from "../components/ui/EmptyState";
 import { useToast } from "../components/ui/ToastProvider";
-import { cleanAiResponse } from "../utils/aiResponse";
+import { cleanAiReportResponse } from "../utils/aiResponse";
+import ReactMarkdown from "react-markdown";
 const reportTypeLabels: Record<AiReportType, string> = {
   sales_report: "Rapport de ventes",
   stock_recommendation: "Recommandations de stock",
@@ -65,8 +67,12 @@ export default function AiReportsPage() {
       toast.success(response.message ?? "Rapport IA généré avec succès.");
       setSelectedReport(response.data);
       await loadReports();
-    } catch {
-      toast.error("Génération du rapport IA impossible.");
+    } catch (requestError) {
+      const message = axios.isAxiosError<{ message?: string }>(requestError)
+        ? requestError.response?.data?.message
+        : null;
+
+      toast.error(message ?? "Génération du rapport IA impossible.");
     } finally {
       setGenerating(false);
     }
@@ -188,7 +194,9 @@ export default function AiReportsPage() {
 
 
 <div className="ai-markdown whitespace-pre-line rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 dark:border-slate-800 dark:bg-slate-950">
-  {cleanAiResponse(selectedReport.content)}
+  <ReactMarkdown>
+    {cleanAiReportResponse(selectedReport.content)}
+  </ReactMarkdown>
 </div>
             </div>
           )}

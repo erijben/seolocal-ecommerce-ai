@@ -30,14 +30,21 @@ class OllamaProvider implements AiProviderInterface
             return null;
         }
 
-        $timeout = $purpose === 'tool_routing'
-            ? 5
-            : (int) config('services.ollama.timeout', 120);
+        $timeout = match ($purpose) {
+    'tool_routing' => 5,
+    'report' => (int) config('services.ollama.report_timeout', 240),
+    default => (int) config('services.ollama.timeout', 120),
+};
 
-       $numPredict = $purpose === 'tool_routing'
-    ? 80
-    : (int) config('services.ollama.num_predict', 240);
+             $numPredict = match ($purpose) {
+            'tool_routing' => 80,
+            'report' => (int) config('services.ollama.report_num_predict', 700),
+            default => (int) config('services.ollama.num_predict', 240),
+        };
 
+        $numContext = $purpose === 'report'
+            ? (int) config('services.ollama.report_num_ctx', 4096)
+            : (int) config('services.ollama.num_ctx', 1024);
         $totalMessageLength = collect($messages)
             ->sum(fn ($message) => mb_strlen((string) ($message['content'] ?? '')));
 
@@ -62,7 +69,7 @@ class OllamaProvider implements AiProviderInterface
                     'options' => [
                         'temperature' => (float) config('services.ollama.temperature', 0.2),
                         'num_predict' => $numPredict,
-                       'num_ctx' => (int) config('services.ollama.num_ctx', 1024),
+                        'num_ctx' => $numContext,
                     ],
                 ]);
 
