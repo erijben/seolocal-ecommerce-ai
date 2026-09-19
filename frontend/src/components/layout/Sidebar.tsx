@@ -1,26 +1,38 @@
 import { Link, useLocation } from "react-router-dom";
 import {
+  Activity,
+  BookOpen,
   Bot,
   Boxes,
-  Activity,
   FileText,
   LayoutDashboard,
   ShoppingCart,
   Tags,
-  Users,
   TrendingUp,
+  Users,
   X,
-  BookOpen,
-  
+  type LucideIcon,
 } from "lucide-react";
-
+import {
+  ADMIN_ONLY_ROLES,
+  hasAllowedRole,
+} from "../../auth/authorization";
+import { useAuth } from "../../context/AuthContext";
+import type { UserRole } from "../../types/auth";
 
 type SidebarProps = {
   isOpen: boolean;
   onClose: () => void;
 };
 
-const links = [
+type SidebarLink = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  allowedRoles?: readonly UserRole[];
+};
+
+const links: SidebarLink[] = [
   { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { to: "/categories", label: "Catégories", icon: Tags },
   { to: "/products", label: "Produits", icon: Boxes },
@@ -28,18 +40,33 @@ const links = [
   { to: "/orders", label: "Commandes", icon: ShoppingCart },
   { to: "/ai-assistant", label: "Assistant IA", icon: Bot },
   {
-  label: "Base de connaissances",
-  to: "/knowledge-base",
-  icon: BookOpen,
-},
-  { to: "/ai-agent-insights", label: "Suivi de l’assistant", icon: Activity },
-  { to: "/ai-stock-forecast", label: "Prévisions de stock", icon: TrendingUp },
-{ to: "/ai-reports", label: "Rapports IA", icon: FileText },
-
+    to: "/knowledge-base",
+    label: "Base de connaissances",
+    icon: BookOpen,
+    allowedRoles: ADMIN_ONLY_ROLES,
+  },
+  {
+    to: "/ai-agent-insights",
+    label: "Suivi de l’assistant",
+    icon: Activity,
+    allowedRoles: ADMIN_ONLY_ROLES,
+  },
+  {
+    to: "/ai-stock-forecast",
+    label: "Prévisions de stock",
+    icon: TrendingUp,
+  },
+  { to: "/ai-reports", label: "Rapports IA", icon: FileText },
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
+  const { user } = useAuth();
+  const visibleLinks = links.filter(
+    (link) =>
+      link.allowedRoles === undefined ||
+      hasAllowedRole(user?.role, link.allowedRoles),
+  );
 
   return (
     <>
@@ -62,7 +89,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
               SmartCommerce
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Administration</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Administration
+            </p>
           </div>
 
           <button
@@ -76,7 +105,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         <nav className="space-y-2">
-          {links.map((link) => {
+          {visibleLinks.map((link) => {
             const Icon = link.icon;
             const active = location.pathname === link.to;
 

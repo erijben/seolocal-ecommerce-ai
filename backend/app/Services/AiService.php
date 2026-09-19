@@ -7,16 +7,19 @@ use App\Services\Ai\AiToolExecutorService;
 use App\Services\Ai\Providers\AiProviderManager;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\Ai\Microservice\AiMicroserviceClient;
+
 
 class AiService
 {
     public function __construct(
-        private DashboardService $dashboardService,
-        private AiRouterService $routerService,
-        private AiToolExecutorService $toolExecutorService,
-        private AiProviderManager $providerManager,
-    ) {
-    }
+    private DashboardService $dashboardService,
+    private AiRouterService $routerService,
+    private AiToolExecutorService $toolExecutorService,
+    private AiProviderManager $providerManager,
+    private AiMicroserviceClient $aiMicroserviceClient,
+) {
+}
 
     public function answerQuestion(string $question, ?int $userId = null): array
     {
@@ -40,7 +43,10 @@ class AiService
             'request_id' => $requestId,
             'provider' => $route['provider'] ?? null,
             'confidence' => $route['confidence'] ?? null,
-            'tools' => collect($route['tools'] ?? [])->pluck('name')->values()->toArray(),
+            'tools' => collect($route['tools'] ?? [])
+                ->pluck('name')
+                ->values()
+                ->toArray(),
         ]);
 
         $toolResults = $this->toolExecutorService->execute(
@@ -49,52 +55,181 @@ class AiService
             requestId: $requestId
         );
 
+        $forceLegacyProvider = false;
+
+        if (
+            $this->isKnowledgeOnlyRoute($route)
+            && $this->aiMicroserviceClient->isEnabled()
+        ) {
+            $microserviceResponse = $this->askKnowledgeMicroservice(
+                question: $question,
+                requestId: $requestId,
+            );
+
+            $knowledgeAnswer = $this->formatKnowledgeMicroserviceAnswer(
+                response: $microserviceResponse,
+                route: $route,
+            );
+
+            if ($knowledgeAnswer !== null) {
+                Log::info('AI knowledge question handled by microservice', [
+                    'request_id' => $requestId,
+                    'provider' => $knowledgeAnswer['provider'],
+                    'rag_chunks_count' => data_get(
+                        $knowledgeAnswer,
+                        'used_data.rag_chunks_count',
+                        0
+                    ),
+                    'duration_ms' => (int) round(
+                        (microtime(true) - $startedAt) * 1000
+                    ),
+                ]);
+
+                return $knowledgeAnswer;
+            }
+
+            $microserviceErrorCode = $this->microserviceErrorCode(
+                $microserviceResponse,
+                'ai_microservice_knowledge_failed'
+            );
+
+            Log::warning('AI knowledge microservice response unusable', [
+                'request_id' => $requestId,
+                'http_status' => $microserviceResponse['http_status'] ?? null,
+                'error_code' => $microserviceErrorCode,
+                'legacy_fallback_enabled' => (
+                    $this->legacyFallbackEnabled()
+                ),
+            ]);
+
+            if (! $this->legacyFallbackEnabled()) {
+                return $this->assistantErrorResult(
+                    route: $route,
+                    toolResults: $toolResults,
+                    errorCode: $microserviceErrorCode,
+                );
+            }
+
+            $forceLegacyProvider = true;
+        }
+
         Log::info('AI tools executed', [
             'request_id' => $requestId,
-            'rag_chunks_count' => data_get($toolResults, 'knowledge_base.chunks_count', 0),
-            'stock_forecast_products_count' => count(data_get($toolResults, 'stock_forecast.products', [])),
-            'has_business_snapshot' => ! empty(data_get($toolResults, 'business_snapshot.stats')),
+            'rag_chunks_count' => data_get(
+                $toolResults,
+                'knowledge_base.chunks_count',
+                0
+            ),
+            'stock_forecast_products_count' => count(
+                data_get($toolResults, 'stock_forecast.products', [])
+            ),
+            'has_business_snapshot' => ! empty(
+                data_get($toolResults, 'business_snapshot.stats')
+            ),
         ]);
 
         if (! $this->hasUsableToolData($toolResults)) {
-            $finalResponse = ['provider' => 'none', 'answer' => null];
+            return $this->assistantErrorResult(
+                route: $route,
+                toolResults: $toolResults,
+                errorCode: 'assistant_context_unavailable',
+                message: (
+                    'Les données nécessaires à la réponse sont '
+                    . 'temporairement indisponibles.'
+                ),
+            );
+        }
+
+        if (
+            $this->aiMicroserviceClient->isEnabled()
+            && ! $forceLegacyProvider
+        ) {
+            $finalResponse = $this->generateFinalAnswerWithMicroservice(
+                question: $question,
+                route: $route,
+                toolResults: $toolResults,
+                requestId: $requestId,
+            );
+
+            if (($finalResponse['status'] ?? 'error') !== 'ok') {
+                if (! $this->legacyFallbackEnabled()) {
+                    return $this->assistantErrorResult(
+                        route: $route,
+                        toolResults: $toolResults,
+                        errorCode: (string) (
+                            $finalResponse['error_code']
+                            ?? 'ai_microservice_generation_failed'
+                        ),
+                        message: $finalResponse['message'] ?? null,
+                    );
+                }
+
+                Log::warning(
+                    'AI microservice failed; explicit Laravel fallback used',
+                    [
+                        'request_id' => $requestId,
+                        'error_code' => (
+                            $finalResponse['error_code'] ?? null
+                        ),
+                    ]
+                );
+
+                $finalResponse = $this->generateFinalAnswerWithLegacyProvider(
+                    question: $question,
+                    route: $route,
+                    toolResults: $toolResults,
+                    requestId: $requestId,
+                );
+            }
         } else {
-            $finalResponse = $this->providerManager->chat([
-                [
-                    'role' => 'system',
-                    'content' => $this->finalAnswerSystemPrompt(),
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $this->buildFinalAnswerPrompt($question, $route, $toolResults),
-                ],
-            ], [
-                'purpose' => 'final_answer',
-                'request_id' => $requestId,
-            ]);
+            $finalResponse = $this->generateFinalAnswerWithLegacyProvider(
+                question: $question,
+                route: $route,
+                toolResults: $toolResults,
+                requestId: $requestId,
+            );
         }
 
         $answer = $finalResponse['answer'] ?? null;
 
-        if (! is_string($answer) || trim($answer) === '') {
-            $answer = $this->safeNoAnswer($toolResults);
+        if (
+            ($finalResponse['status'] ?? 'error') !== 'ok'
+            || ! is_string($answer)
+            || trim($answer) === ''
+        ) {
+            return $this->assistantErrorResult(
+                route: $route,
+                toolResults: $toolResults,
+                errorCode: (string) (
+                    $finalResponse['error_code']
+                    ?? 'ai_provider_unavailable'
+                ),
+                message: $finalResponse['message'] ?? null,
+            );
         }
 
         Log::info('AI ask finished', [
             'request_id' => $requestId,
             'provider' => $finalResponse['provider'] ?? 'none',
-            'answer_empty' => ! is_string($answer) || trim($answer) === '',
-            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            'answer_empty' => false,
+            'duration_ms' => (int) round(
+                (microtime(true) - $startedAt) * 1000
+            ),
         ]);
 
         return [
+            'status' => 'ok',
             'answer' => $this->cleanAssistantAnswerText($answer),
             'intent' => $this->intentFromTools($route['tools'] ?? []),
             'provider' => $finalResponse['provider'] ?? 'none',
-            'used_data' => $this->summarizeUsedData($route, $toolResults),
+            'used_data' => $this->summarizeUsedData(
+                $route,
+                $toolResults
+            ),
+            'error_code' => null,
+            'message' => null,
         ];
     }
-
   /**
  * @return array{status: 'ok'|'error', provider: string, content: ?string}
  */
@@ -135,52 +270,81 @@ public function generateReport(
         $period
     );
 
-   $summary = [
-    'content' => $reportData['summary_content'],
-];
-
-$salesAnalysis = [
-    'content' => $reportData['sales_analysis_content'],
-];
-
-$recommendations = $this->generateReportNarrative(
-    'Choisis les trois actions prioritaires à partir des données fournies.',
-    $reportData['recommendations_context'],
-    $requestId
-);
-
-if ($recommendations === null) {
-    Log::warning('AI report recommendation selection failed', [
-        'request_id' => $requestId,
-        'reason' => 'provider_unavailable',
-    ]);
-
-    return [
-        'status' => 'error',
-        'provider' => $provider,
-        'content' => null,
+    $summary = [
+        'content' => $reportData['summary_content'],
     ];
-}
 
-$recommendationsContent = $this->renderReportRecommendations(
-    $recommendations['content']
-);
-
-if ($recommendationsContent === null) {
-    Log::warning('AI report recommendation selection failed', [
-        'request_id' => $requestId,
-        'reason' => 'invalid_action_codes',
-        'provider' => $recommendations['provider'],
-    ]);
-
-    return [
-        'status' => 'error',
-        'provider' => $recommendations['provider'],
-        'content' => null,
+    $salesAnalysis = [
+        'content' => $reportData['sales_analysis_content'],
     ];
-}
 
-$provider = $recommendations['provider'];
+    $recommendationSelection = $this
+        ->selectReportRecommendationActions(
+            reportType: $type,
+            period: $period,
+            context: $reportData['recommendations_context'],
+            requestId: $requestId,
+        );
+
+    if (
+        ($recommendationSelection['status'] ?? 'error')
+        !== 'ok'
+    ) {
+        Log::warning('AI report recommendation selection failed', [
+            'request_id' => $requestId,
+            'reason' => (
+                $recommendationSelection['error_code']
+                ?? 'report_recommendation_failed'
+            ),
+            'provider' => (
+                $recommendationSelection['provider']
+                ?? 'none'
+            ),
+        ]);
+
+        return [
+            'status' => 'error',
+            'provider' => (
+                $recommendationSelection['provider']
+                ?? 'none'
+            ),
+            'content' => null,
+            'error_code' => (
+                $recommendationSelection['error_code']
+                ?? 'report_recommendation_failed'
+            ),
+        ];
+    }
+
+    $recommendationsContent = $this
+        ->renderReportRecommendations(
+            $recommendationSelection['action_codes'] ?? []
+        );
+
+    if ($recommendationsContent === null) {
+        Log::warning('AI report recommendation rendering failed', [
+            'request_id' => $requestId,
+            'reason' => 'invalid_action_codes',
+            'provider' => (
+                $recommendationSelection['provider']
+                ?? 'none'
+            ),
+        ]);
+
+        return [
+            'status' => 'error',
+            'provider' => (
+                $recommendationSelection['provider']
+                ?? 'none'
+            ),
+            'content' => null,
+            'error_code' => 'invalid_report_action_codes',
+        ];
+    }
+
+    $provider = (string) (
+        $recommendationSelection['provider'] ?? 'none'
+    );
 
     $content = str_replace(
         [
@@ -655,56 +819,262 @@ Réponse :
 
 
 
-    private function renderReportRecommendations(string $response): ?string
-{
-    $labels = [
-        'PRIORITIZE_RESTOCK' =>
-            '- Prioriser le réapprovisionnement des produits actuellement sous leur seuil d’alerte.',
-        'FOLLOW_ORDER_STATUSES' =>
-            '- Assurer un suivi opérationnel des commandes selon leur statut et traiter en priorité celles qui nécessitent une action.',
-        'ANALYZE_CANCELLATIONS' =>
-            '- Examiner les commandes annulées afin d’identifier les points opérationnels à corriger.',
-        'RETAIN_IMPORTANT_CUSTOMERS' =>
-            '- Préparer une action de fidélisation ciblée pour les clients importants identifiés.',
-    ];
+    private function selectReportRecommendationActions(
+        string $reportType,
+        string $period,
+        string $context,
+        string $requestId
+    ): array {
+        if ($this->aiMicroserviceClient->isEnabled()) {
+            $selection = $this
+                ->selectReportActionsWithMicroservice(
+                    reportType: $reportType,
+                    period: $period,
+                    context: $context,
+                    requestId: $requestId,
+                );
 
- $normalizedResponse = preg_replace(
-    '/[^A-Z]+/',
-    '_',
-    strtoupper($response)
-) ?? '';
+            if (($selection['status'] ?? 'error') === 'ok') {
+                return $selection;
+            }
 
-$codePositions = [];
+            if (! $this->legacyFallbackEnabled()) {
+                return $selection;
+            }
 
-foreach (array_keys($labels) as $code) {
-    $position = strpos($normalizedResponse, $code);
+            Log::warning(
+                'AI report microservice failed; explicit Laravel fallback used',
+                [
+                    'request_id' => $requestId,
+                    'error_code' => (
+                        $selection['error_code'] ?? null
+                    ),
+                ]
+            );
+        }
 
-    if ($position !== false) {
-        $codePositions[$code] = $position;
+        return $this->selectReportActionsWithLegacyProvider(
+            context: $context,
+            requestId: $requestId,
+        );
     }
-}
 
-asort($codePositions);
+    private function selectReportActionsWithMicroservice(
+        string $reportType,
+        string $period,
+        string $context,
+        string $requestId
+    ): array {
+        if (! $this->aiMicroserviceClient->isConfigured()) {
+            return [
+                'status' => 'error',
+                'provider' => 'none',
+                'model' => null,
+                'action_codes' => [],
+                'error_code' => 'ai_microservice_not_configured',
+            ];
+        }
 
-$selectedCodes = array_keys($codePositions);
+        $response = $this->aiMicroserviceClient
+            ->selectReportActions(
+                reportType: $reportType,
+                period: $period,
+                context: $context,
+                requestId: $requestId,
+            );
 
-    if (count($selectedCodes) < 3) {
-        return null;
+        if (
+            ($response['status'] ?? 'error') !== 'ok'
+            || data_get($response, 'data.status') !== 'ok'
+        ) {
+            return [
+                'status' => 'error',
+                'provider' => data_get(
+                    $response,
+                    'data.llm_provider',
+                    'none'
+                ),
+                'model' => data_get(
+                    $response,
+                    'data.llm_model'
+                ),
+                'action_codes' => [],
+                'error_code' => $this->microserviceErrorCode(
+                    $response,
+                    'report_recommendation_failed'
+                ),
+            ];
+        }
+
+        $actionCodes = $this->validateReportActionCodes(
+            data_get($response, 'data.action_codes', [])
+        );
+
+        if ($actionCodes === null) {
+            return [
+                'status' => 'error',
+                'provider' => data_get(
+                    $response,
+                    'data.llm_provider',
+                    'none'
+                ),
+                'model' => data_get(
+                    $response,
+                    'data.llm_model'
+                ),
+                'action_codes' => [],
+                'error_code' => 'invalid_report_action_codes',
+            ];
+        }
+
+        return [
+            'status' => 'ok',
+            'provider' => data_get(
+                $response,
+                'data.llm_provider',
+                'none'
+            ),
+            'model' => data_get(
+                $response,
+                'data.llm_model'
+            ),
+            'action_codes' => $actionCodes,
+            'error_code' => null,
+        ];
     }
 
-    $selectedCodes = array_slice($selectedCodes, 0, 3);
+    private function selectReportActionsWithLegacyProvider(
+        string $context,
+        string $requestId
+    ): array {
+        $narrative = $this->generateReportNarrative(
+            'Choisis les trois actions prioritaires à partir des données fournies.',
+            $context,
+            $requestId
+        );
 
-    return implode(
-        "\n",
-        array_map(
-            static fn (string $code): string => $labels[$code],
-            $selectedCodes
-        )
-    );
-}
+        if ($narrative === null) {
+            return [
+                'status' => 'error',
+                'provider' => 'none',
+                'model' => null,
+                'action_codes' => [],
+                'error_code' => 'ai_provider_unavailable',
+            ];
+        }
 
+        $actionCodes = $this->extractReportActionCodes(
+            $narrative['content']
+        );
 
+        if ($actionCodes === null) {
+            return [
+                'status' => 'error',
+                'provider' => $narrative['provider'],
+                'model' => null,
+                'action_codes' => [],
+                'error_code' => 'invalid_report_action_codes',
+            ];
+        }
 
+        return [
+            'status' => 'ok',
+            'provider' => $narrative['provider'],
+            'model' => null,
+            'action_codes' => $actionCodes,
+            'error_code' => null,
+        ];
+    }
+
+    private function extractReportActionCodes(
+        string $response
+    ): ?array {
+        $normalizedResponse = preg_replace(
+            '/[^A-Z]+/',
+            '_',
+            strtoupper($response)
+        ) ?? '';
+
+        $codePositions = [];
+
+        foreach (
+            array_keys($this->reportRecommendationLabels())
+            as $code
+        ) {
+            $position = strpos($normalizedResponse, $code);
+
+            if ($position !== false) {
+                $codePositions[$code] = $position;
+            }
+        }
+
+        asort($codePositions);
+
+        return $this->validateReportActionCodes(
+            array_keys($codePositions)
+        );
+    }
+
+    private function validateReportActionCodes(
+        mixed $actionCodes
+    ): ?array {
+        if (! is_array($actionCodes) || count($actionCodes) !== 3) {
+            return null;
+        }
+
+        $labels = $this->reportRecommendationLabels();
+        $validatedCodes = [];
+
+        foreach (array_values($actionCodes) as $code) {
+            if (
+                ! is_string($code)
+                || ! array_key_exists($code, $labels)
+                || in_array($code, $validatedCodes, true)
+            ) {
+                return null;
+            }
+
+            $validatedCodes[] = $code;
+        }
+
+        return $validatedCodes;
+    }
+
+    private function renderReportRecommendations(
+        array $actionCodes
+    ): ?string {
+        $validatedCodes = $this->validateReportActionCodes(
+            $actionCodes
+        );
+
+        if ($validatedCodes === null) {
+            return null;
+        }
+
+        $labels = $this->reportRecommendationLabels();
+
+        return implode(
+            "\n",
+            array_map(
+                static fn (string $code): string => $labels[$code],
+                $validatedCodes
+            )
+        );
+    }
+
+    private function reportRecommendationLabels(): array
+    {
+        return [
+            'PRIORITIZE_RESTOCK' =>
+                '- Prioriser le réapprovisionnement des produits actuellement sous leur seuil d’alerte.',
+            'FOLLOW_ORDER_STATUSES' =>
+                '- Assurer un suivi opérationnel des commandes selon leur statut et traiter en priorité celles qui nécessitent une action.',
+            'ANALYZE_CANCELLATIONS' =>
+                '- Examiner les commandes annulées afin d’identifier les points opérationnels à corriger.',
+            'RETAIN_IMPORTANT_CUSTOMERS' =>
+                '- Préparer une action de fidélisation ciblée pour les clients importants identifiés.',
+        ];
+    }
 
 private function reportSystemPrompt(): string
 {
@@ -809,11 +1179,6 @@ private function generateReportNarrative(
         return $knowledgeUsable || $forecastUsable || $businessUsable;
     }
 
-    private function safeNoAnswer(array $toolResults): string
-    {
-        return "Le moteur IA local n’a pas répondu dans le délai disponible. Merci de réessayer dans quelques secondes.";
-    }
-
     private function cleanTextForPrompt(?string $text): string
     {
         $text = (string) $text;
@@ -831,6 +1196,333 @@ private function generateReportNarrative(
 
         return trim($text);
     }
+
+
+    private function isKnowledgeOnlyRoute(array $route): bool
+{
+    $toolNames = collect($route['tools'] ?? [])
+        ->pluck('name')
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+
+    return $toolNames === ['search_knowledge_base'];
+}
+
+private function legacyFallbackEnabled(): bool
+{
+    return (bool) config(
+        'services.ai_microservice.legacy_fallback_enabled',
+        false
+    );
+}
+
+private function generateFinalAnswerWithMicroservice(
+    string $question,
+    array $route,
+    array $toolResults,
+    string $requestId
+): array {
+    if (! $this->aiMicroserviceClient->isConfigured()) {
+        return [
+            'status' => 'error',
+            'provider' => 'none',
+            'model' => null,
+            'answer' => null,
+            'error_code' => 'ai_microservice_not_configured',
+            'message' => (
+                'Le microservice IA est activé mais sa configuration '
+                . 'est incomplète.'
+            ),
+        ];
+    }
+
+    $context = $this->compactToolResultsForPrompt(
+        $toolResults
+    );
+
+    if (trim($context) === '') {
+        return [
+            'status' => 'error',
+            'provider' => 'none',
+            'model' => null,
+            'answer' => null,
+            'error_code' => 'assistant_context_unavailable',
+            'message' => (
+                'Les données nécessaires à la réponse sont '
+                . 'temporairement indisponibles.'
+            ),
+        ];
+    }
+
+    $response = $this->aiMicroserviceClient->generateAnswer(
+        question: $question,
+        context: $context,
+        intent: $this->intentFromTools(
+            $route['tools'] ?? []
+        ),
+        requestId: $requestId,
+    );
+
+    $answer = data_get($response, 'data.answer');
+
+    if (
+        ($response['status'] ?? 'error') !== 'ok'
+        || data_get($response, 'data.status') !== 'ok'
+        || ! is_string($answer)
+        || trim($answer) === ''
+    ) {
+        $errorCode = $this->microserviceErrorCode(
+            $response,
+            'ai_microservice_generation_failed'
+        );
+
+        Log::warning(
+            'AI microservice final generation failed',
+            [
+                'request_id' => $requestId,
+                'http_status' => (
+                    $response['http_status'] ?? null
+                ),
+                'error_code' => $errorCode,
+            ]
+        );
+
+        return [
+            'status' => 'error',
+            'provider' => 'none',
+            'model' => null,
+            'answer' => null,
+            'error_code' => $errorCode,
+            'message' => (
+                'Le microservice IA est temporairement indisponible.'
+            ),
+        ];
+    }
+
+    return [
+        'status' => 'ok',
+        'provider' => data_get(
+            $response,
+            'data.llm_provider',
+            'none'
+        ),
+        'model' => data_get(
+            $response,
+            'data.llm_model'
+        ),
+        'answer' => trim($answer),
+        'error_code' => null,
+        'message' => null,
+    ];
+}
+
+private function generateFinalAnswerWithLegacyProvider(
+    string $question,
+    array $route,
+    array $toolResults,
+    string $requestId
+): array {
+    $response = $this->providerManager->chat([
+        [
+            'role' => 'system',
+            'content' => $this->finalAnswerSystemPrompt(),
+        ],
+        [
+            'role' => 'user',
+            'content' => $this->buildFinalAnswerPrompt(
+                $question,
+                $route,
+                $toolResults
+            ),
+        ],
+    ], [
+        'purpose' => 'final_answer',
+        'request_id' => $requestId,
+    ]);
+
+    $answer = $response['answer'] ?? null;
+    $provider = (string) ($response['provider'] ?? 'none');
+
+    if (
+        $provider === 'none'
+        || ! is_string($answer)
+        || trim($answer) === ''
+    ) {
+        return [
+            'status' => 'error',
+            'provider' => 'none',
+            'model' => null,
+            'answer' => null,
+            'error_code' => 'ai_provider_unavailable',
+            'message' => (
+                'Aucun fournisseur IA autorisé n’est actuellement '
+                . 'disponible.'
+            ),
+        ];
+    }
+
+    return [
+        'status' => 'ok',
+        'provider' => $provider,
+        'model' => $response['model'] ?? null,
+        'answer' => trim($answer),
+        'error_code' => null,
+        'message' => null,
+    ];
+}
+
+private function assistantErrorResult(
+    array $route,
+    array $toolResults,
+    string $errorCode,
+    ?string $message = null
+): array {
+    return [
+        'status' => 'error',
+        'answer' => null,
+        'intent' => $this->intentFromTools(
+            $route['tools'] ?? []
+        ),
+        'provider' => 'none',
+        'used_data' => $this->summarizeUsedData(
+            $route,
+            $toolResults
+        ),
+        'error_code' => $errorCode,
+        'message' => (
+            $message
+            ?? 'Le service IA est temporairement indisponible.'
+        ),
+    ];
+}
+
+private function microserviceErrorCode(
+    array $response,
+    string $default
+): string {
+    $errorCode = (
+        $response['error_code']
+        ?? data_get($response, 'data.error_code')
+    );
+
+    return is_string($errorCode) && trim($errorCode) !== ''
+        ? $errorCode
+        : $default;
+}
+private function askKnowledgeMicroservice(
+    string $question,
+    string $requestId
+): array {
+    if (! $this->aiMicroserviceClient->isConfigured()) {
+        return [
+            'status' => 'error',
+            'http_status' => null,
+            'error_code' => 'ai_microservice_not_configured',
+            'message' => (
+                'Le microservice IA est activé mais sa configuration '
+                . 'est incomplète.'
+            ),
+            'data' => null,
+        ];
+    }
+
+    return $this->aiMicroserviceClient->ask(
+        question: $question,
+        topK: 5,
+        minScore: 0.4,
+        requestId: $requestId,
+    );
+}
+private function formatKnowledgeMicroserviceAnswer(
+    array $response,
+    array $route
+): ?array {
+    if (($response['status'] ?? 'error') !== 'ok') {
+        return null;
+    }
+
+    $ragStatus = data_get($response, 'data.status');
+    $citations = collect(data_get($response, 'data.citations', []))
+        ->filter(fn ($citation) => is_array($citation))
+        ->values();
+
+    $ragSources = $citations
+        ->pluck('document_title')
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+
+    $usedData = [
+        'tools_used' => ['search_knowledge_base'],
+        'router_provider' => $route['provider'] ?? null,
+        'router_confidence' => $route['confidence'] ?? null,
+
+        'has_stats' => false,
+        'sales_periods_count' => 0,
+        'top_products_count' => 0,
+        'top_customers_count' => 0,
+        'orders_status_count' => 0,
+        'low_stock_products_count' => 0,
+
+        'stock_forecast_products_count' => 0,
+        'stock_forecast_provider' => null,
+
+        'rag_chunks_count' => $citations->count(),
+        'rag_sources' => $ragSources,
+        'rag_retrieval_provider' => data_get(
+            $response,
+            'data.retrieval_provider'
+        ),
+        'rag_retrieval_model' => data_get(
+            $response,
+            'data.retrieval_model'
+        ),
+        'llm_model' => data_get($response, 'data.llm_model'),
+        'citations' => $citations->all(),
+    ];
+
+    if ($ragStatus === 'empty') {
+        return [
+            'status' => 'ok',
+            'answer' => (
+                'Je n’ai trouvé aucun document interne suffisamment '
+                . 'pertinent pour répondre avec fiabilité à cette question.'
+            ),
+            'intent' => 'knowledge_search',
+            'provider' => 'none',
+            'used_data' => $usedData,
+            'error_code' => null,
+            'message' => null,
+        ];
+    }
+
+    $answer = data_get($response, 'data.answer');
+
+    if (
+        $ragStatus !== 'ok'
+        || ! is_string($answer)
+        || trim($answer) === ''
+    ) {
+        return null;
+    }
+
+    return [
+        'status' => 'ok',
+        'answer' => $this->cleanAssistantAnswerText($answer),
+        'intent' => 'knowledge_search',
+        'provider' => data_get(
+            $response,
+            'data.llm_provider',
+            'none'
+        ),
+        'used_data' => $usedData,
+        'error_code' => null,
+        'message' => null,
+    ];
+}
 
     private function summarizeUsedData(array $route, array $toolResults): array
     {

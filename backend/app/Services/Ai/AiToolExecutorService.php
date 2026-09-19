@@ -5,15 +5,17 @@ namespace App\Services\Ai;
 use App\Services\DashboardService;
 use Throwable;
 use Illuminate\Support\Facades\Log;
+use App\Services\Ai\Microservice\KnowledgeDocumentSyncService;
 
 class AiToolExecutorService
 {
     public function __construct(
-        private DashboardService $dashboardService,
-        private KnowledgeBaseService $knowledgeBaseService,
-        private AiStockForecastService $stockForecastService,
-    ) {
-    }
+    private DashboardService $dashboardService,
+    private KnowledgeBaseService $knowledgeBaseService,
+    private AiStockForecastService $stockForecastService,
+    private KnowledgeDocumentSyncService $knowledgeDocumentSyncService,
+) {
+}
 
 public function execute(array $tools, string $question, ?string $requestId = null): array
     {
@@ -29,10 +31,39 @@ Log::info('AI tool started', [
 ]);
 
             try {
-                if ($name === 'search_knowledge_base') {
-                    $results['knowledge_base'] = $this->knowledgeBaseService
-                     ->buildRagContext($question, 3);
-                }
+               if ($name === 'search_knowledge_base') {
+    $semanticContext = $this
+        ->knowledgeDocumentSyncService
+        ->buildRagContext(
+            query: $question,
+            limit: 3,
+            requestId: $requestId,
+        );
+
+    $semanticStatus = data_get(
+        $semanticContext,
+        'status'
+    );
+
+    $useLegacyKnowledgeFallback = (
+        $semanticStatus === 'skipped'
+        || (
+            $semanticStatus === 'error'
+            && (bool) config(
+                'services.ai_microservice.legacy_fallback_enabled',
+                false
+            )
+        )
+    );
+
+    if ($useLegacyKnowledgeFallback) {
+        $results['knowledge_base'] = $this
+            ->knowledgeBaseService
+            ->buildRagContext($question, 3);
+    } else {
+        $results['knowledge_base'] = $semanticContext;
+    }
+}
 
                 if ($name === 'get_stock_forecast') {
               $results['stock_forecast'] = $this->stockForecastService->getStockForecast(

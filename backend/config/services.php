@@ -63,6 +63,34 @@ return [
         ),
     ],
 
+    'ai_microservice' => [
+    'enabled' => filter_var(
+        env('AI_MICROSERVICE_ENABLED', false),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+    'legacy_fallback_enabled' => filter_var(
+        env('AI_MICROSERVICE_LEGACY_FALLBACK_ENABLED', false),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+    'base_url' => rtrim(
+        env(
+            'AI_MICROSERVICE_BASE_URL',
+            'http://127.0.0.1:8002'
+        ),
+        '/'
+    ),
+    'api_key' => env('AI_MICROSERVICE_API_KEY'),
+    'connect_timeout' => (int) env(
+        'AI_MICROSERVICE_CONNECT_TIMEOUT',
+        3
+    ),
+    'timeout' => (int) env(
+        'AI_MICROSERVICE_TIMEOUT',
+        180
+    ),
+],
+
+
         'ollama' => [
         'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
         'model' => env('OLLAMA_MODEL', 'llama3.2:1b'),

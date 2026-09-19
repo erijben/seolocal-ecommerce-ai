@@ -75,6 +75,24 @@ public function ask(Request $request)
     $request->user()->id
 );
 
+    if (
+        ($result['status'] ?? 'error') !== 'ok'
+        || ! is_string($result['answer'] ?? null)
+        || trim($result['answer']) === ''
+    ) {
+        return response()->json([
+            'success' => false,
+            'message' => (
+                $result['message']
+                ?? 'Le service IA est temporairement indisponible.'
+            ),
+            'error_code' => (
+                $result['error_code']
+                ?? 'ai_service_unavailable'
+            ),
+        ], 503);
+    }
+
     $aiQuestion = AiQuestion::create([
          'user_id' => $request->user()->id,
     'question' => $validated['question'],

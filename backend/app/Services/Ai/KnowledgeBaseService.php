@@ -76,6 +76,8 @@ public function __construct(
                 'file_size' => $file->getSize(),
                 'extraction_status' => 'success',
                 'extraction_error' => null,
+                'ai_index_status' => 'pending',
+                'ai_index_error' => null,
             ]);
 
             $this->rebuildChunks($document);

@@ -7,12 +7,16 @@ use App\Models\KnowledgeDocument;
 use App\Services\Ai\KnowledgeBaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\Ai\Microservice\KnowledgeDocumentSyncService;
+use Illuminate\Support\Str;
 
 class KnowledgeBaseController extends Controller
 {
-    public function __construct(private KnowledgeBaseService $knowledgeBaseService)
-    {
-    }
+    public function __construct(
+    private KnowledgeBaseService $knowledgeBaseService,
+    private KnowledgeDocumentSyncService $knowledgeDocumentSyncService
+) {
+}
 
     public function index()
     {
@@ -84,28 +88,107 @@ class KnowledgeBaseController extends Controller
         'title' => ['nullable', 'string', 'max:255'],
         'type' => ['nullable', 'string', 'max:50'],
         'status' => ['nullable', 'in:active,inactive'],
-        'file' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+        'file' => [
+            'required',
+            'file',
+            'mimes:pdf',
+            'max:10240',
+        ],
     ]);
 
-    $document = $this->knowledgeBaseService->createDocumentFromPdf(
-        file: $request->file('file'),
-        data: $validated,
-        userId: $request->user()?->id
+    $requestId = (
+        $request->header('X-Request-ID')
+        ?: (string) Str::uuid()
+    );
+
+    $document = $this->knowledgeBaseService
+        ->createDocumentFromPdf(
+            file: $request->file('file'),
+            data: $validated,
+            userId: $request->user()?->id
+        );
+
+    $syncResult = $this->knowledgeDocumentSyncService
+        ->indexDocument(
+            document: $document,
+            requestId: $requestId,
+        );
+
+    if (data_get($syncResult, 'status') === 'error') {
+        return response()->json([
+            'success' => false,
+            'message' => (
+                'Le PDF a été enregistré, mais son '
+                .'indexation sémantique est temporairement '
+                .'indisponible.'
+            ),
+            'error_code' => data_get(
+                $syncResult,
+                'error_code'
+            ),
+            'request_id' => $requestId,
+            'data' => data_get(
+                $syncResult,
+                'document',
+                $document->fresh()
+            ),
+        ], 503);
+    }
+
+    $synchronizedDocument = data_get(
+        $syncResult,
+        'document',
+        $document->fresh()
     );
 
     return response()->json([
         'success' => true,
-        'message' => 'PDF ajouté à la base de connaissances avec succès.',
-        'data' => $document,
+        'message' => (
+            data_get($syncResult, 'status') === 'ok'
+                ? 'PDF ajouté et indexé avec succès.'
+                : 'PDF ajouté à la base de connaissances '
+                    .'avec succès.'
+        ),
+        'request_id' => $requestId,
+        'data' => $synchronizedDocument,
     ], 201);
 }
 
 
+public function destroy(
+    Request $request,
+    KnowledgeDocument $knowledgeDocument
+) {
+    $requestId = (
+        $request->header('X-Request-ID')
+        ?: (string) Str::uuid()
+    );
 
-  public function destroy(KnowledgeDocument $knowledgeDocument)
-{
+    $syncResult = $this->knowledgeDocumentSyncService
+        ->deleteRemoteDocument(
+            document: $knowledgeDocument,
+            requestId: $requestId,
+        );
+
+    if (data_get($syncResult, 'status') === 'error') {
+        return response()->json([
+            'success' => false,
+            'message' => (
+                'Le document ne peut pas être supprimé '
+                .'pour le moment. Réessayez ultérieurement.'
+            ),
+            'error_code' => data_get(
+                $syncResult,
+                'error_code'
+            ),
+            'request_id' => $requestId,
+        ], 503);
+    }
+
     if ($knowledgeDocument->file_path) {
-        Storage::disk('local')->delete($knowledgeDocument->file_path);
+        Storage::disk('local')->delete(
+            $knowledgeDocument->file_path
+        );
     }
 
     $knowledgeDocument->delete();
@@ -113,24 +196,75 @@ class KnowledgeBaseController extends Controller
     return response()->json([
         'success' => true,
         'message' => 'Document supprimé avec succès.',
+        'request_id' => $requestId,
     ]);
 }
 
-    public function search(Request $request)
-    {
-        $validated = $request->validate([
-            'query' => ['required', 'string', 'min:3'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:10'],
-        ]);
+   public function search(Request $request)
+{
+    $validated = $request->validate([
+        'query' => [
+            'required',
+            'string',
+            'min:3',
+            'max:2000',
+        ],
+        'limit' => [
+            'nullable',
+            'integer',
+            'min:1',
+            'max:10',
+        ],
+    ]);
 
-        $results = $this->knowledgeBaseService->search(
+    $limit = $validated['limit'] ?? 5;
+
+    $requestId = (
+        $request->header('X-Request-ID')
+        ?: (string) Str::uuid()
+    );
+
+    $semanticResult = $this
+        ->knowledgeDocumentSyncService
+        ->searchDocuments(
             query: $validated['query'],
-            limit: $validated['limit'] ?? 5
+            limit: $limit,
+            requestId: $requestId,
         );
 
+    if (data_get($semanticResult, 'status') === 'error') {
         return response()->json([
-            'success' => true,
-            'data' => $results,
-        ]);
+            'success' => false,
+            'message' => (
+                'La recherche documentaire est '
+                .'temporairement indisponible.'
+            ),
+            'error_code' => data_get(
+                $semanticResult,
+                'error_code'
+            ),
+            'request_id' => $requestId,
+            'data' => [],
+        ], 503);
     }
+
+    if (data_get($semanticResult, 'status') === 'skipped') {
+        $results = $this->knowledgeBaseService->search(
+            query: $validated['query'],
+            limit: $limit
+        );
+    } else {
+        $results = data_get(
+            $semanticResult,
+            'results',
+            []
+        );
+    }
+
+    return response()->json([
+        'success' => true,
+        'request_id' => $requestId,
+        'data' => $results,
+    ]);
+}
 }
