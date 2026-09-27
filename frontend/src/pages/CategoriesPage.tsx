@@ -10,7 +10,7 @@ import {
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import Modal from "../components/ui/Modal";
-import { useToast } from "../components/ui/ToastProvider";
+import { useToast } from "../components/ui/toastContext";
 import type { Category } from "../types/category";
 
 const emptyForm: CategoryFormData = { name: "", description: "" };
@@ -43,7 +43,29 @@ export default function CategoriesPage() {
   }
 
   useEffect(() => {
-    void loadCategories();
+    let cancelled = false;
+
+    async function loadFilteredCategories() {
+      try {
+        const data = await getCategories(search);
+        if (!cancelled) {
+          setCategories(data);
+          setError("");
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les catégories.");
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadFilteredCategories();
+
+    return () => {
+      cancelled = true;
+    };
   }, [search]);
 
   function openCreateModal() {

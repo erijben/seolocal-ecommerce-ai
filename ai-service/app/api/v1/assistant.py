@@ -1,5 +1,4 @@
 from typing import Annotated
-from uuid import uuid4
 from app.schemas.assistant import (
     AssistantGenerationRequest,
     AssistantGenerationResponse,
@@ -12,7 +11,6 @@ from fastapi import (
     Depends,
     HTTPException,
     Request,
-    Response,
     status,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +40,6 @@ router = APIRouter(
 async def ask_rag_assistant(
     payload: RagQuestionRequest,
     request: Request,
-    response: Response,
     tenant: Annotated[
         Tenant,
         Depends(require_tenant),
@@ -52,12 +49,7 @@ async def ask_rag_assistant(
         Depends(get_db_session),
     ],
 ) -> RagAnswerResponse:
-    request_id = (
-        request.headers.get("X-Request-ID")
-        or str(uuid4())
-    )
-
-    response.headers["X-Request-ID"] = request_id
+    request_id = request.state.request_id
 
     result = await RagAnswerService().answer(
         session=session,
@@ -117,18 +109,12 @@ async def ask_rag_assistant(
 async def generate_assistant_answer(
     payload: AssistantGenerationRequest,
     request: Request,
-    response: Response,
     tenant: Annotated[
         Tenant,
         Depends(require_tenant),
     ],
 ) -> AssistantGenerationResponse:
-    request_id = (
-        request.headers.get("X-Request-ID")
-        or str(uuid4())
-    )
-
-    response.headers["X-Request-ID"] = request_id
+    request_id = request.state.request_id
 
     result = await AssistantGenerationService().generate(
         question=payload.question,

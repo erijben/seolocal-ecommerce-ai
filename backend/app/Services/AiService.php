@@ -21,9 +21,13 @@ class AiService
 ) {
 }
 
-    public function answerQuestion(string $question, ?int $userId = null): array
+    public function answerQuestion(
+        string $question,
+        ?int $userId = null,
+        ?string $requestId = null
+    ): array
     {
-        $requestId = (string) Str::uuid();
+        $requestId = $this->resolveRequestId($requestId);
         $startedAt = microtime(true);
 
         Log::info('AI ask started', [
@@ -235,9 +239,10 @@ class AiService
  */
 public function generateReport(
     string $type,
-    string $period = 'monthly'
+    string $period = 'monthly',
+    ?string $requestId = null
 ): array {
-    $requestId = (string) Str::uuid();
+    $requestId = $this->resolveRequestId($requestId);
     $provider = 'none';
 
     if (config('services.ai.provider') === 'ollama') {
@@ -1398,6 +1403,13 @@ private function assistantErrorResult(
     ];
 }
 
+private function resolveRequestId(?string $requestId): string
+{
+    return is_string($requestId) && trim($requestId) !== ''
+        ? $requestId
+        : (string) Str::uuid();
+}
+
 private function microserviceErrorCode(
     array $response,
     string $default
@@ -1595,4 +1607,3 @@ private function formatKnowledgeMicroserviceAnswer(
         return trim($answer);
     }
 }
-

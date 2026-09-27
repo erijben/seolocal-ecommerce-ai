@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getAiAgentInsights } from "../api/aiApi";
 import type { AiAgentInsights } from "../types/ai";
+import { addRequestReference } from "../api/requestId";
 import {
   getIntentLabel,
   getProviderBadgeClass,
@@ -29,15 +30,44 @@ export default function AiAgentInsightsPage() {
 
       const data = await getAiAgentInsights();
       setInsights(data);
-    } catch {
-      setError("Impossible de charger l’activité de l’assistant IA.");
+    } catch (requestError) {
+      setError(addRequestReference(
+        "Impossible de charger l’activité de l’assistant IA.",
+        requestError,
+      ));
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadInsights();
+    let cancelled = false;
+
+    async function loadInitialInsights() {
+      try {
+        const data = await getAiAgentInsights();
+        if (!cancelled) {
+          setInsights(data);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(addRequestReference(
+            "Impossible de charger l’activité de l’assistant IA.",
+            requestError,
+          ));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadInitialInsights();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const maxIntentTotal = useMemo(() => {

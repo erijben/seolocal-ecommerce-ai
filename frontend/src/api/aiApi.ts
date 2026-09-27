@@ -40,6 +40,21 @@ export async function getAiReports() {
   return response.data.data;
 }
 
+export async function exportAiReportPdf(reportId: number) {
+  const response = await axiosClient.get<Blob>(
+    `/ai/reports/${reportId}/pdf`,
+    { responseType: "blob" },
+  );
+
+  const disposition = response.headers["content-disposition"];
+  const filenameMatch = disposition?.match(/filename="?([^";]+)"?/i);
+
+  return {
+    blob: response.data,
+    filename: filenameMatch?.[1] ?? `rapport-ia-${reportId}.pdf`,
+  };
+}
+
 export async function getAiQuestions() {
   const response = await axiosClient.get<ApiResponse<AiQuestion[]>>(
     "/ai/questions"

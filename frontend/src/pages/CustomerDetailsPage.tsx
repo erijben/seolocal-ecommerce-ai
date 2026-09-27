@@ -39,24 +39,34 @@ export default function CustomerDetailsPage() {
     }).format(Number(value ?? 0));
   }
 
-  async function loadCustomer() {
-    if (!customerId) return;
-
-    try {
-      setLoading(true);
-      setError("");
-
-      const data = await getCustomer(Number(customerId));
-      setCustomer(data);
-    } catch {
-      setError("Impossible de charger les détails du client.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadCustomer();
+    if (!customerId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRequestedCustomer() {
+      try {
+        const data = await getCustomer(Number(customerId));
+        if (!cancelled) {
+          setCustomer(data);
+          setError("");
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les détails du client.");
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadRequestedCustomer();
+
+    return () => {
+      cancelled = true;
+    };
   }, [customerId]);
 
   const totalSpent = useMemo(() => {

@@ -1,5 +1,5 @@
 import { LogOut, Menu, Moon, Sun } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authContextValue";
 import { useTheme } from "../../context/ThemeContext";
 
 type TopbarProps = {

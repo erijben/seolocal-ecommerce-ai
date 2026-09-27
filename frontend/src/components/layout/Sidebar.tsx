@@ -17,7 +17,7 @@ import {
   ADMIN_ONLY_ROLES,
   hasAllowedRole,
 } from "../../auth/authorization";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authContextValue";
 import type { UserRole } from "../../types/auth";
 
 type SidebarProps = {

@@ -42,7 +42,11 @@ class AiReportMicroserviceTest extends TestCase
         $providerManager->shouldNotReceive('chat');
 
         $result = $this->makeService($providerManager)
-            ->generateReport('sales_report', 'monthly');
+            ->generateReport(
+                'sales_report',
+                'monthly',
+                '22222222-2222-4222-8222-222222222222'
+            );
 
         $this->assertSame('ok', $result['status']);
         $this->assertSame(
@@ -81,6 +85,10 @@ class AiReportMicroserviceTest extends TestCase
                 === 'http://ai.test/api/v1/reports/recommendations'
                 && $payload['report_type'] === 'sales_report'
                 && $payload['period'] === 'monthly'
+                && $request->hasHeader(
+                    'X-Request-ID',
+                    '22222222-2222-4222-8222-222222222222'
+                )
                 && is_string($payload['context'])
                 && str_contains(
                     $payload['context'],

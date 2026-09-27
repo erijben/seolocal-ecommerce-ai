@@ -38,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/low-stock-products', [DashboardController::class, 'lowStockProducts']);
 
     Route::post('/ai/generate-report', [AiController::class, 'generateReport']);
+    Route::get('/ai/reports/{aiReport}/pdf', [AiController::class, 'exportReportPdf']);
     Route::get('/ai/stock-forecast', [AiController::class, 'stockForecast']);
 
     // Routes IA accessibles aux utilisateurs connectés

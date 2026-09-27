@@ -19,7 +19,7 @@ import { getProducts } from "../api/productApi";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import Modal from "../components/ui/Modal";
-import { useToast } from "../components/ui/ToastProvider";
+import { useToast } from "../components/ui/toastContext";
 import type { Customer } from "../types/customer";
 import type {
   Order,
@@ -101,11 +101,59 @@ export default function OrdersPage() {
   }
 
   useEffect(() => {
-    void loadInitialData();
+    let cancelled = false;
+
+    async function loadReferences() {
+      try {
+        const [customersData, productsData] = await Promise.all([
+          getCustomers(),
+          getProducts({ status: "active" }),
+        ]);
+        if (!cancelled) {
+          setCustomers(customersData);
+          setProducts(productsData);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les clients ou les produits.");
+        }
+      }
+    }
+
+    void loadReferences();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    void loadOrders();
+    let cancelled = false;
+
+    async function loadFilteredOrders() {
+      try {
+        const data = await getOrders({
+          status: statusFilter,
+          customer_id: customerFilter,
+        });
+        if (!cancelled) {
+          setOrders(data);
+          setError("");
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les commandes.");
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadFilteredOrders();
+
+    return () => {
+      cancelled = true;
+    };
   }, [statusFilter, customerFilter]);
 
   function openCreateModal() {

@@ -41,7 +41,8 @@ class AiServiceFallbackPolicyTest extends TestCase
         $result = $this->makeService($providerManager)
             ->answerQuestion(
                 'Quels produits faut-il réapprovisionner ?',
-                1
+                1,
+                '11111111-1111-4111-8111-111111111111'
             );
 
         $this->assertSame('error', $result['status']);
@@ -51,6 +52,10 @@ class AiServiceFallbackPolicyTest extends TestCase
         );
         $this->assertNull($result['answer']);
         Http::assertSentCount(1);
+        Http::assertSent(fn ($request): bool => $request->hasHeader(
+            'X-Request-ID',
+            '11111111-1111-4111-8111-111111111111'
+        ));
     }
 
     public function test_microservice_failure_uses_explicit_legacy_fallback(): void

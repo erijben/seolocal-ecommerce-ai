@@ -9,6 +9,8 @@ use App\Services\AiService;
 use Illuminate\Http\Request;
 use App\Services\Ai\AiAgentAnalyticsService;
 use App\Services\Ai\AiStockForecastService;
+use App\Services\Ai\AiReportPdfService;
+use App\Http\Middleware\RequestIdMiddleware;
 class AiController extends Controller
 {
     public function __construct(private AiService $aiService)
@@ -29,7 +31,8 @@ class AiController extends Controller
 
         $result = $this->aiService->generateReport(
             $validated['type'],
-            $period
+            $period,
+            $request->attributes->get(RequestIdMiddleware::ATTRIBUTE)
         );
 
         if (
@@ -72,7 +75,8 @@ public function ask(Request $request)
 
    $result = $this->aiService->answerQuestion(
     $validated['question'],
-    $request->user()->id
+    $request->user()->id,
+    $request->attributes->get(RequestIdMiddleware::ATTRIBUTE)
 );
 
     if (
@@ -125,11 +129,32 @@ public function reports(Request $request)
     ]);
 }
 
-public function stockForecast(AiStockForecastService $forecastService)
+public function exportReportPdf(
+    Request $request,
+    AiReport $aiReport,
+    AiReportPdfService $pdfService
+) {
+    $user = $request->user();
+
+    if (! $this->isAdmin($user) && $aiReport->user_id !== $user->id) {
+        abort(404);
+    }
+
+    return $pdfService->download($aiReport);
+}
+
+public function stockForecast(
+    Request $request,
+    AiStockForecastService $forecastService
+)
 {
     return response()->json([
         'success' => true,
-        'data' => $forecastService->getStockForecast(),
+        'data' => $forecastService->getStockForecast(
+            requestId: $request->attributes->get(
+                RequestIdMiddleware::ATTRIBUTE
+            )
+        ),
     ]);
 }
 

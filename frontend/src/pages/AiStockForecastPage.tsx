@@ -27,6 +27,7 @@ import type {
   AiStockForecastProduct,
   StockRiskLevel,
 } from "../types/ai";
+import { addRequestReference } from "../api/requestId";
 
 export default function AiStockForecastPage() {
   const [forecast, setForecast] = useState<AiStockForecast | null>(null);
@@ -40,15 +41,44 @@ export default function AiStockForecastPage() {
 
       const data = await getAiStockForecast();
       setForecast(data);
-    } catch {
-      setError("Impossible de charger les prévisions de stock.");
+    } catch (requestError) {
+      setError(addRequestReference(
+        "Impossible de charger les prévisions de stock.",
+        requestError,
+      ));
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadForecast();
+    let cancelled = false;
+
+    async function loadInitialForecast() {
+      try {
+        const data = await getAiStockForecast();
+        if (!cancelled) {
+          setForecast(data);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(addRequestReference(
+            "Impossible de charger les prévisions de stock.",
+            requestError,
+          ));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadInitialForecast();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const criticalProducts = useMemo(() => {

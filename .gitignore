@@ -24,6 +24,12 @@ frontend/dist/
 *.backup.php
 *.bak
 *.old
+backend/backups/
+
+# Local runtime and generated artifacts
+.runtime-logs/
+tmp/
+output/
 
 # Editors and operating systems
 .DS_Store

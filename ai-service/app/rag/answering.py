@@ -211,9 +211,11 @@ Règles obligatoires :
             request_id=request_id,
         )
 
+        answer = (llm_result.content or "").strip()
+
         if (
             llm_result.status != "ok"
-            or not llm_result.content
+            or not answer
         ):
             logger.warning(
                 "RAG answer generation failed",
@@ -240,8 +242,6 @@ Règles obligatoires :
                     or "answer_generation_failed"
                 ),
             )
-
-        answer = llm_result.content.strip()
 
         logger.info(
             "RAG answer generation finished",

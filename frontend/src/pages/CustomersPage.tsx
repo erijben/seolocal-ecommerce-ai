@@ -10,7 +10,7 @@ import {
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import Modal from "../components/ui/Modal";
-import { useToast } from "../components/ui/ToastProvider";
+import { useToast } from "../components/ui/toastContext";
 import type { Customer, CustomerFormData } from "../types/customer";
 
 const emptyForm: CustomerFormData = {
@@ -49,7 +49,29 @@ export default function CustomersPage() {
   }
 
   useEffect(() => {
-    void loadCustomers();
+    let cancelled = false;
+
+    async function loadFilteredCustomers() {
+      try {
+        const data = await getCustomers(search);
+        if (!cancelled) {
+          setCustomers(data);
+          setError("");
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les clients.");
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadFilteredCustomers();
+
+    return () => {
+      cancelled = true;
+    };
   }, [search]);
 
   function handleChange(

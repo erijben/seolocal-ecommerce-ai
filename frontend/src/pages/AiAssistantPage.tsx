@@ -12,6 +12,8 @@ import { askAi, getAiQuestions } from "../api/aiApi";
 import type { AiQuestion } from "../types/ai";
 import { cleanAiResponse } from "../utils/aiResponse";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { addRequestReference } from "../api/requestId";
 import {
   getIntentLabel,
   getProviderBadgeClass,
@@ -37,22 +39,34 @@ export default function AiAssistantPage() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function loadHistory() {
-    try {
-      setHistoryLoading(true);
-      setError("");
-
-      const data = await getAiQuestions();
-      setHistory(data);
-    } catch {
-      setError("Impossible de charger l’historique des questions IA.");
-    } finally {
-      setHistoryLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadHistory();
+    let cancelled = false;
+
+    async function loadHistory() {
+      try {
+        const data = await getAiQuestions();
+        if (!cancelled) {
+          setHistory(data);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(addRequestReference(
+            "Impossible de charger l’historique des questions IA.",
+            requestError,
+          ));
+        }
+      } finally {
+        if (!cancelled) {
+          setHistoryLoading(false);
+        }
+      }
+    }
+
+    void loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
 async function handleSubmit(e: FormEvent) {
@@ -73,8 +87,6 @@ async function handleSubmit(e: FormEvent) {
       question: currentQuestion,
     });
 
-    console.log("AI POST response", response);
-
     const createdQuestion = response.data;
 
     setHistory((previous) => [
@@ -90,8 +102,11 @@ async function handleSubmit(e: FormEvent) {
     } catch {
       console.warn("Historique non rechargé après la réponse IA.");
     }
-  } catch {
-    setError("Impossible de générer une réponse IA.");
+  } catch (requestError) {
+    setError(addRequestReference(
+      "Impossible de générer une réponse IA.",
+      requestError,
+    ));
   } finally {
     setLoading(false);
   }
@@ -249,11 +264,11 @@ async function handleSubmit(e: FormEvent) {
                   </details>
                 )}
 
-              <div className="ai-markdown rounded-2xl bg-white p-4 text-sm leading-7 dark:bg-slate-900">
-  <ReactMarkdown>
-    {cleanAiResponse(item.answer ?? "")}
-  </ReactMarkdown>
-</div>
+                <div className="ai-markdown overflow-x-auto rounded-2xl bg-white p-4 text-sm leading-7 dark:bg-slate-900">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {cleanAiResponse(item.answer ?? "")}
+                  </ReactMarkdown>
+                </div>
               </div>
             ))}
           </div>

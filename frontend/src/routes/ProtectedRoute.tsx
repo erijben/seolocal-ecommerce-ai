@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { hasAllowedRole } from "../auth/authorization";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/authContextValue";
 import type { UserRole } from "../types/auth";
 
 type RouteGuardProps = {

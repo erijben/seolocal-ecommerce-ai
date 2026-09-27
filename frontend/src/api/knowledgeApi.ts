@@ -1,5 +1,6 @@
 import axios from "axios";
 import api from "./axiosClient";
+import { addRequestReference } from "./requestId";
 import type {
   KnowledgeDocument,
   KnowledgeDocumentStatus,
@@ -80,10 +81,16 @@ export function getApiErrorMessage(error: unknown) {
       | undefined;
 
     if (data?.errors) {
-      return Object.values(data.errors).flat().join(" ");
+      return addRequestReference(
+        Object.values(data.errors).flat().join(" "),
+        error,
+      );
     }
 
-    return data?.message ?? "Une erreur est survenue.";
+    return addRequestReference(
+      data?.message ?? "Une erreur est survenue.",
+      error,
+    );
   }
 
   return "Une erreur est survenue.";

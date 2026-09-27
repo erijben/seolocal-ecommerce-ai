@@ -73,50 +73,57 @@ const productStatusLabels: Record<string, string> = {
     }).format(numberValue);
   }
 
-  async function loadDashboard() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const [
-        statsData,
-        salesData,
-        topProductsData,
-        topCustomersData,
-        ordersByStatusData,
-        lowStockData,
-      ] = await Promise.all([
-        getDashboardStats(),
-        getSalesByPeriod("monthly"),
-        getTopProducts(5),
-        getTopCustomers(5),
-        getOrdersByStatus(),
-        getLowStockProducts(),
-      ]);
-
-      setStats(statsData);
-
-      setSales(
-        salesData.map((item) => ({
-          ...item,
-          total_sales: Number(item.total_sales),
-          orders_count: Number(item.orders_count),
-        }))
-      );
-
-      setTopProducts(topProductsData);
-      setTopCustomers(topCustomersData);
-      setOrdersByStatus(ordersByStatusData);
-      setLowStockProducts(lowStockData);
-    } catch {
-      setError("Impossible de charger les données du tableau de bord.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadDashboard();
+    let cancelled = false;
+
+    async function loadDashboard() {
+      try {
+        const [
+          statsData,
+          salesData,
+          topProductsData,
+          topCustomersData,
+          ordersByStatusData,
+          lowStockData,
+        ] = await Promise.all([
+          getDashboardStats(),
+          getSalesByPeriod("monthly"),
+          getTopProducts(5),
+          getTopCustomers(5),
+          getOrdersByStatus(),
+          getLowStockProducts(),
+        ]);
+
+        if (!cancelled) {
+          setStats(statsData);
+          setSales(
+            salesData.map((item) => ({
+              ...item,
+              total_sales: Number(item.total_sales),
+              orders_count: Number(item.orders_count),
+            })),
+          );
+          setTopProducts(topProductsData);
+          setTopCustomers(topCustomersData);
+          setOrdersByStatus(ordersByStatusData);
+          setLowStockProducts(lowStockData);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les données du tableau de bord.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadDashboard();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {

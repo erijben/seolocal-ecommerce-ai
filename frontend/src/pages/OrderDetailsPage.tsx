@@ -52,7 +52,33 @@ export default function OrderDetailsPage() {
   }
 
   useEffect(() => {
-    loadOrder();
+    if (!orderId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRequestedOrder() {
+      try {
+        const data = await getOrder(Number(orderId));
+        if (!cancelled) {
+          setOrder(data);
+          setError("");
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les détails de la commande.");
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadRequestedOrder();
+
+    return () => {
+      cancelled = true;
+    };
   }, [orderId]);
 
   function getAvailableStatuses(currentStatus: OrderStatus): OrderStatus[] {

@@ -11,7 +11,7 @@ import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import Modal from "../components/ui/Modal";
 import StatusBadge from "../components/ui/StatusBadge";
-import { useToast } from "../components/ui/ToastProvider";
+import { useToast } from "../components/ui/toastContext";
 import type { Category } from "../types/category";
 import type { Product, ProductFormData } from "../types/product";
 
@@ -64,20 +64,58 @@ export default function ProductsPage() {
     }
   }
 
-  async function loadCategories() {
-    try {
-      setCategories(await getCategories());
-    } catch {
-      setError("Impossible de charger les catégories.");
-    }
-  }
-
   useEffect(() => {
-    void loadCategories();
+    let cancelled = false;
+
+    async function loadProductCategories() {
+      try {
+        const data = await getCategories();
+        if (!cancelled) {
+          setCategories(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les catégories.");
+        }
+      }
+    }
+
+    void loadProductCategories();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    void loadProducts();
+    let cancelled = false;
+
+    async function loadFilteredProducts() {
+      try {
+        const data = await getProducts({
+          search,
+          category_id: categoryFilter,
+          status: statusFilter,
+          low_stock: lowStockOnly,
+        });
+        if (!cancelled) {
+          setProducts(data);
+          setError("");
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Impossible de charger les produits.");
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadFilteredProducts();
+
+    return () => {
+      cancelled = true;
+    };
   }, [search, categoryFilter, statusFilter, lowStockOnly]);
 
   function handleChange(

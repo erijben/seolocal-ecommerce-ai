@@ -15,6 +15,10 @@ axiosClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  if (!config.headers.has("X-Request-ID")) {
+    config.headers.set("X-Request-ID", crypto.randomUUID());
+  }
+
   return config;
 });
 

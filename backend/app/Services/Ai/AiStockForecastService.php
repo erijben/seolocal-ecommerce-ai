@@ -9,12 +9,16 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class AiStockForecastService
 {
     public function getStockForecast(int $days = 90, ?string $requestId = null): array
     {
+        $requestId = is_string($requestId) && trim($requestId) !== ''
+            ? $requestId
+            : (string) Str::uuid();
         $startedAt = microtime(true);
 
         Log::info('AI stock forecast started', [
@@ -28,7 +32,9 @@ class AiStockForecastService
             ? Carbon::parse($latestOrderDate)->endOfDay()
             : now();
 
-        $startDate = (clone $endDate)->subDays($days)->startOfDay();
+        $startDate = (clone $endDate)
+            ->subDays(max(0, $days - 1))
+            ->startOfDay();
 
         $products = Product::with('category')
             ->where('status', 'active')
@@ -193,6 +199,9 @@ class AiStockForecastService
             ]);
 
             $response = Http::timeout($timeout)
+                ->withHeaders([
+                    'X-Request-ID' => $requestId,
+                ])
                 ->post($baseUrl . '/forecast/stock', $payload);
 
             $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
@@ -209,6 +218,15 @@ class AiStockForecastService
 
             $json = $response->json();
 
+            if (! $this->isValidMlResponse($json)) {
+                Log::warning('AI stock forecast ML service returned an invalid payload', [
+                    'request_id' => $requestId,
+                    'duration_ms' => $durationMs,
+                ]);
+
+                return null;
+            }
+
             Log::info('AI stock forecast ML response received', [
                 'request_id' => $requestId,
                 'provider' => data_get($json, 'provider'),
@@ -217,7 +235,7 @@ class AiStockForecastService
                 'duration_ms' => $durationMs,
             ]);
 
-            return is_array($json) ? $json : null;
+            return $json;
         } catch (Throwable $exception) {
             Log::warning('AI stock forecast ML request failed', [
                 'request_id' => $requestId,
@@ -228,6 +246,20 @@ class AiStockForecastService
 
             return null;
         }
+    }
+
+    private function isValidMlResponse(mixed $json): bool
+    {
+        return is_array($json)
+            && ! array_is_list($json)
+            && is_string($json['provider'] ?? null)
+            && trim($json['provider']) !== ''
+            && is_string($json['model_version'] ?? null)
+            && trim($json['model_version']) !== ''
+            && array_key_exists('summary', $json)
+            && is_array($json['summary'])
+            && array_key_exists('products', $json)
+            && is_array($json['products']);
     }
 
     private function getLaravelFallbackForecast(

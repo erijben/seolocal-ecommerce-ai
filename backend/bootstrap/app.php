@@ -5,6 +5,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\RequestIdMiddleware;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
    ->withMiddleware(function (Middleware $middleware) {
+    $middleware->prepend(RequestIdMiddleware::class);
+
     $middleware->alias([
         'admin' => EnsureUserIsAdmin::class,
     ]);
@@ -22,4 +26,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->respond(function (
+            Response $response,
+            Throwable $exception,
+            Request $request
+        ): Response {
+            $requestId = $request->attributes->get(
+                RequestIdMiddleware::ATTRIBUTE
+            );
+
+            if (is_string($requestId) && $requestId !== '') {
+                $response->headers->set(
+                    RequestIdMiddleware::HEADER,
+                    $requestId
+                );
+            }
+
+            return $response;
+        });
     })->create();

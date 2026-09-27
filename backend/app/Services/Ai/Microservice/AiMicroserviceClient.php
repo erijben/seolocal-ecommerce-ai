@@ -260,7 +260,7 @@ public function uploadKnowledgeDocument(
             'http_status' => null,
             'error_code' => 'uploaded_file_unavailable',
             'message' => 'The uploaded PDF is unavailable.',
-            'request_id' => null,
+            'request_id' => $requestId,
             'data' => null,
         ];
     }
@@ -273,7 +273,7 @@ public function uploadKnowledgeDocument(
             'http_status' => null,
             'error_code' => 'uploaded_file_unreadable',
             'message' => 'The uploaded PDF cannot be read.',
-            'request_id' => null,
+            'request_id' => $requestId,
             'data' => null,
         ];
     }
@@ -336,7 +336,7 @@ public function deleteKnowledgeDocument(
             'http_status' => null,
             'error_code' => 'invalid_document_id',
             'message' => 'The knowledge document ID is invalid.',
-            'request_id' => null,
+            'request_id' => $requestId,
             'data' => null,
         ];
     }
@@ -399,7 +399,7 @@ $request = $multipart
                 'message' => (
                     'AI microservice base URL is missing.'
                 ),
-                'request_id' => null,
+                'request_id' => $requestId,
                 'data' => null,
                 
             ];
@@ -413,7 +413,7 @@ $request = $multipart
                 'message' => (
                     'AI microservice API key is missing.'
                 ),
-                'request_id' => null,
+                'request_id' => $requestId,
                 'data' => null,
             ];
         }
@@ -442,6 +442,12 @@ $request = $multipart
             }
 
             if (! $response->successful()) {
+                $resolvedRequestId = $this->resolveResponseRequestId(
+                    response: $response,
+                    requestId: $requestId,
+                    path: $path,
+                );
+
                 return [
                     'status' => 'error',
                     'http_status' => $response->status(),
@@ -455,22 +461,24 @@ $request = $multipart
                         'detail.message',
                         'AI microservice request failed.'
                     ),
-                    'request_id' => $response->header(
-                        'X-Request-ID'
-                    ),
+                    'request_id' => $resolvedRequestId,
                     'duration_ms' => $durationMs,
                     'data' => null,
                 ];
             }
+
+            $resolvedRequestId = $this->resolveResponseRequestId(
+                response: $response,
+                requestId: $requestId,
+                path: $path,
+            );
 
             return [
                 'status' => 'ok',
                 'http_status' => $response->status(),
                 'error_code' => null,
                 'message' => null,
-                'request_id' => $response->header(
-                    'X-Request-ID'
-                ),
+                'request_id' => $resolvedRequestId,
                 'duration_ms' => $durationMs,
                 'data' => $responseData,
             ];
@@ -480,6 +488,7 @@ $request = $multipart
                 'AI microservice connection failed',
                 [
                     'path' => $path,
+                    'request_id' => $requestId,
                     'exception' => $exception::class,
                 ]
             );
@@ -493,7 +502,7 @@ $request = $multipart
                 'message' => (
                     'AI microservice is unavailable.'
                 ),
-                'request_id' => null,
+                'request_id' => $requestId,
                 'data' => null,
             ];
 
@@ -502,6 +511,7 @@ $request = $multipart
                 'AI microservice unexpected error',
                 [
                     'path' => $path,
+                    'request_id' => $requestId,
                     'exception' => $exception::class,
                 ]
             );
@@ -515,9 +525,42 @@ $request = $multipart
                 'message' => (
                     'AI microservice request failed.'
                 ),
-                'request_id' => null,
+                'request_id' => $requestId,
                 'data' => null,
             ];
         }
+    }
+
+    private function resolveResponseRequestId(
+        $response,
+        ?string $requestId,
+        string $path
+    ): ?string {
+        $remoteRequestId = $response->header('X-Request-ID');
+
+        if ($requestId !== null && $requestId !== '') {
+            if (
+                is_string($remoteRequestId)
+                && $remoteRequestId !== ''
+                && ! hash_equals($requestId, $remoteRequestId)
+            ) {
+                Log::warning(
+                    'AI microservice request ID mismatch',
+                    [
+                        'path' => $path,
+                        'request_id' => $requestId,
+                        'remote_request_id_mismatch' => true,
+                    ]
+                );
+            }
+
+            return $requestId;
+        }
+
+        return is_string($remoteRequestId)
+            && strlen($remoteRequestId) === 36
+            && Str::isUuid($remoteRequestId)
+                ? $remoteRequestId
+                : null;
     }
 }

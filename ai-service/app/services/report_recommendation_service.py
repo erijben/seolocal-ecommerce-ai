@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import logging
-import re
 from typing import Literal
 
 from app.providers.factory import get_llm_provider_manager
@@ -154,25 +153,26 @@ Règles obligatoires :
     def _extract_action_codes(
         answer: str,
     ) -> list[ReportActionCode]:
-        normalized_answer = re.sub(
-            r"[^A-Z]+",
-            "_",
-            answer.upper(),
-        )
+        lines = answer.splitlines()
 
-        positions: list[
-            tuple[int, ReportActionCode]
-        ] = []
+        while lines and not lines[0].strip():
+            lines.pop(0)
 
-        for code in ACTION_CODES:
-            position = normalized_answer.find(code)
+        while lines and not lines[-1].strip():
+            lines.pop()
 
-            if position >= 0:
-                positions.append((position, code))
+        if len(lines) != 3:
+            return []
 
-        positions.sort(key=lambda item: item[0])
+        normalized_lines = [line.strip() for line in lines]
 
-        return [
-            code
-            for _, code in positions[:3]
-        ]
+        if any(
+            line not in ACTION_CODES
+            for line in normalized_lines
+        ):
+            return []
+
+        if len(set(normalized_lines)) != 3:
+            return []
+
+        return normalized_lines

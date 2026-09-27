@@ -1,13 +1,9 @@
 from typing import Annotated
-from uuid import uuid4
-
-
 from fastapi import (
     APIRouter,
     Depends,
-    Header,
     HTTPException,
-    Response,
+    Request,
     status,
 )
 from app.api.dependencies.auth import require_tenant
@@ -38,16 +34,11 @@ async def select_report_recommendations(
         Tenant,
         Depends(require_tenant),
     ],
-    response: Response,
-    request_id: Annotated[
-        str | None,
-        Header(alias="X-Request-ID"),
-    ] = None,
+    request: Request,
 ) -> ReportRecommendationResponse:
     del tenant
 
-    resolved_request_id = request_id or str(uuid4())
-    response.headers["X-Request-ID"] = resolved_request_id
+    resolved_request_id = request.state.request_id
     result = await ReportRecommendationService().select_actions(
         report_type=payload.report_type,
         period=payload.period,

@@ -1,12 +1,11 @@
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
     Request,
-    Response,
     Query,
     status,
     File,
@@ -52,7 +51,6 @@ router = APIRouter(
 async def search_knowledge_base(
     payload: KnowledgeSearchRequest,
     request: Request,
-    response: Response,
     tenant: Annotated[
         Tenant,
         Depends(require_tenant),
@@ -62,12 +60,7 @@ async def search_knowledge_base(
         Depends(get_db_session),
     ],
 ) -> KnowledgeSearchResponse:
-    request_id = (
-        request.headers.get("X-Request-ID")
-        or str(uuid4())
-    )
-
-    response.headers["X-Request-ID"] = request_id
+    request_id = request.state.request_id
 
     result = await SemanticSearchService().search(
         session=session,
@@ -133,7 +126,6 @@ async def search_knowledge_base(
 )
 async def upload_knowledge_document(
     request: Request,
-    response: Response,
     file: Annotated[
         UploadFile,
         File(description="PDF document to index"),
@@ -155,12 +147,7 @@ async def upload_knowledge_document(
         Form(max_length=255),
     ] = None,
 ) -> KnowledgeDocumentIndexResponse:
-    request_id = (
-        request.headers.get("X-Request-ID")
-        or str(uuid4())
-    )
-
-    response.headers["X-Request-ID"] = request_id
+    request_id = request.state.request_id
 
     settings = get_settings()
 
@@ -345,7 +332,6 @@ async def list_knowledge_documents(
 async def delete_knowledge_document(
     document_id: UUID,
     request: Request,
-    response: Response,
     tenant: Annotated[
         Tenant,
         Depends(require_tenant),
@@ -355,12 +341,7 @@ async def delete_knowledge_document(
         Depends(get_db_session),
     ],
 ) -> KnowledgeDocumentDeleteResponse:
-    request_id = (
-        request.headers.get("X-Request-ID")
-        or str(uuid4())
-    )
-
-    response.headers["X-Request-ID"] = request_id
+    request_id = request.state.request_id
 
     document = await session.scalar(
         select(KnowledgeDocument).where(

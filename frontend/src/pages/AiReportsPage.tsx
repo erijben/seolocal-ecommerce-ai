@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Bot, FileText, Sparkles } from "lucide-react";
-import { generateAiReport, getAiReports } from "../api/aiApi";
+import { Bot, Download, FileText, Loader2, Sparkles } from "lucide-react";
+import {
+  exportAiReportPdf,
+  generateAiReport,
+  getAiReports,
+} from "../api/aiApi";
 import type { AiPeriod, AiReport, AiReportType } from "../types/ai";
 import EmptyState from "../components/ui/EmptyState";
-import { useToast } from "../components/ui/ToastProvider";
+import { useToast } from "../components/ui/toastContext";
 import { cleanAiReportResponse } from "../utils/aiResponse";
 import ReactMarkdown from "react-markdown";
+import { addRequestReference } from "../api/requestId";
 const reportTypeLabels: Record<AiReportType, string> = {
   sales_report: "Rapport de ventes",
   stock_recommendation: "Recommandations de stock",
@@ -30,6 +35,7 @@ export default function AiReportsPage() {
 
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [exportingReportId, setExportingReportId] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   async function loadReports() {
@@ -41,15 +47,68 @@ export default function AiReportsPage() {
       if (!selectedReport && data.length > 0) {
         setSelectedReport(data[0]);
       }
-    } catch {
-      setError("Impossible de charger les rapports IA.");
+    } catch (requestError) {
+      setError(addRequestReference(
+        "Impossible de charger les rapports IA.",
+        requestError,
+      ));
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleExportPdf(report: AiReport) {
+    try {
+      setExportingReportId(report.id);
+      const { blob, filename } = await exportAiReportPdf(report.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Rapport PDF téléchargé avec succès.");
+    } catch (requestError) {
+      toast.error(addRequestReference(
+        "Impossible d’exporter ce rapport en PDF.",
+        requestError,
+      ));
+    } finally {
+      setExportingReportId(null);
+    }
+  }
+
   useEffect(() => {
-    loadReports();
+    let cancelled = false;
+
+    async function loadInitialReports() {
+      try {
+        const data = await getAiReports();
+        if (!cancelled) {
+          setReports(data);
+          setSelectedReport((current) => current ?? data[0] ?? null);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(addRequestReference(
+            "Impossible de charger les rapports IA.",
+            requestError,
+          ));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadInitialReports();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleGenerateReport(e: React.FormEvent) {
@@ -72,7 +131,10 @@ export default function AiReportsPage() {
         ? requestError.response?.data?.message
         : null;
 
-      toast.error(message ?? "Génération du rapport IA impossible.");
+      toast.error(addRequestReference(
+        message ?? "Génération du rapport IA impossible.",
+        requestError,
+      ));
     } finally {
       setGenerating(false);
     }
@@ -183,13 +245,28 @@ export default function AiReportsPage() {
             />
           ) : (
             <div>
-              <div className="mb-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 p-4">
-                <p className="font-bold text-slate-900 dark:text-slate-100">
-                  {selectedReport.title}
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {formatDate(selectedReport.generated_at)}
-                </p>
+              <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950/60 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-slate-100">
+                    {selectedReport.title}
+                  </p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {formatDate(selectedReport.generated_at)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={exportingReportId === selectedReport.id}
+                  onClick={() => void handleExportPdf(selectedReport)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-indigo-800 dark:bg-slate-900 dark:text-indigo-300 dark:hover:bg-indigo-950/50"
+                >
+                  {exportingReportId === selectedReport.id ? (
+                    <Loader2 size={17} className="animate-spin" />
+                  ) : (
+                    <Download size={17} />
+                  )}
+                  Exporter en PDF
+                </button>
               </div>
 
 

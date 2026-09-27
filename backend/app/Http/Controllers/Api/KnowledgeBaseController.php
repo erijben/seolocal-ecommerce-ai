@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\RequestIdMiddleware;
 use App\Models\KnowledgeDocument;
 use App\Services\Ai\KnowledgeBaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Services\Ai\Microservice\KnowledgeDocumentSyncService;
-use Illuminate\Support\Str;
 
 class KnowledgeBaseController extends Controller
 {
@@ -96,9 +96,8 @@ class KnowledgeBaseController extends Controller
         ],
     ]);
 
-    $requestId = (
-        $request->header('X-Request-ID')
-        ?: (string) Str::uuid()
+    $requestId = (string) $request->attributes->get(
+        RequestIdMiddleware::ATTRIBUTE
     );
 
     $document = $this->knowledgeBaseService
@@ -159,9 +158,8 @@ public function destroy(
     Request $request,
     KnowledgeDocument $knowledgeDocument
 ) {
-    $requestId = (
-        $request->header('X-Request-ID')
-        ?: (string) Str::uuid()
+    $requestId = (string) $request->attributes->get(
+        RequestIdMiddleware::ATTRIBUTE
     );
 
     $syncResult = $this->knowledgeDocumentSyncService
@@ -219,9 +217,8 @@ public function destroy(
 
     $limit = $validated['limit'] ?? 5;
 
-    $requestId = (
-        $request->header('X-Request-ID')
-        ?: (string) Str::uuid()
+    $requestId = (string) $request->attributes->get(
+        RequestIdMiddleware::ATTRIBUTE
     );
 
     $semanticResult = $this

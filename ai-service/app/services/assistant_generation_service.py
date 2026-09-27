@@ -109,10 +109,9 @@ Règles obligatoires :
             request_id=request_id,
         )
 
-        if (
-            llm_result.status != "ok"
-            or not llm_result.content
-        ):
+        answer = (llm_result.content or "").strip()
+
+        if llm_result.status != "ok" or not answer:
             logger.warning(
                 "Assistant generation failed",
                 extra={
@@ -134,8 +133,6 @@ Règles obligatoires :
                     or "assistant_generation_failed"
                 ),
             )
-
-        answer = llm_result.content.strip()
 
         logger.info(
             "Assistant generation finished",

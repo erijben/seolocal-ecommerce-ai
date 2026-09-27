@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -14,17 +12,12 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-
-export type ToastType = "success" | "error" | "info" | "warning";
-
-type ToastOptions = {
-  duration?: number;
-};
-
-type ToastApi = Record<
-  ToastType,
-  (message: string, options?: ToastOptions) => void
->;
+import {
+  ToastContext,
+  type ToastApi,
+  type ToastOptions,
+  type ToastType,
+} from "./toastContext";
 
 type ToastItem = {
   id: number;
@@ -32,7 +25,6 @@ type ToastItem = {
   type: ToastType;
 };
 
-const ToastContext = createContext<ToastApi | null>(null);
 const MAX_TOASTS = 5;
 
 const toastStyles: Record<
@@ -185,14 +177,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       `}</style>
     </ToastContext.Provider>
   );
-}
-
-export function useToast() {
-  const context = useContext(ToastContext);
-
-  if (!context) {
-    throw new Error("useToast doit être utilisé dans ToastProvider.");
-  }
-
-  return context;
 }

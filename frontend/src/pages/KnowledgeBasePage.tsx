@@ -23,7 +23,7 @@ import {
 } from "../api/knowledgeApi";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
-import { useToast } from "../components/ui/ToastProvider";
+import { useToast } from "../components/ui/toastContext";
 import Modal from "../components/ui/Modal";
 import StatusBadge from "../components/ui/StatusBadge";
 import type {

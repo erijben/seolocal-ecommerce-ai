@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from datetime import date
 from math import ceil
 from typing import Literal
+import logging
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from app.request_id import RequestIdMiddleware
 
 #Le microservice ML reçoit l’historique des ventes journalières, transforme les données avec pandas, entraîne une régression linéaire avec scikit-learn pour prédire la demande future, puis calcule le risque de rupture et la quantité recommandée à réapprovisionner. Si les données sont insuffisantes, il utilise un fallback basé sur la moyenne mobile.
 #analyser les ventes journalières
@@ -27,6 +30,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.add_middleware(
+    RequestIdMiddleware,
+    service_name="smartcommerce-ml-service",
+)
+
+logger = logging.getLogger(__name__)
+
 
 RiskLevel = Literal["critical", "high", "medium", "low"]
 ConfidenceLevel = Literal["high", "medium", "low"]
@@ -35,7 +45,7 @@ ModelName = Literal["linear_regression", "moving_average_fallback"]
 
 
 class DailySale(BaseModel):
-    date: str
+    date: date
     quantity: int = Field(ge=0)
 
 
@@ -100,7 +110,15 @@ def health_check():
 
 
 @app.post("/forecast/stock", response_model=StockForecastResponse)
-def forecast_stock(request: StockForecastRequest):
+def forecast_stock(request: StockForecastRequest, http_request: Request):
+    request_id = http_request.state.request_id
+    logger.info(
+        "ML stock forecast started",
+        extra={
+            "request_id": request_id,
+            "products_count": len(request.products),
+        },
+    )
     products_forecast = [
         forecast_product(product, request.forecast_horizon_days)
         for product in request.products
@@ -123,7 +141,7 @@ def forecast_stock(request: StockForecastRequest):
         "low_count": sum(1 for item in products_forecast if item.risk_level == "low"),
     }
 
-    return StockForecastResponse(
+    response = StockForecastResponse(
         provider="python_scikit_learn",
         model_version="linear-regression-v1",
         analysis_window_days=request.analysis_window_days,
@@ -131,6 +149,16 @@ def forecast_stock(request: StockForecastRequest):
         summary=summary,
         products=products_forecast,
     )
+
+    logger.info(
+        "ML stock forecast finished",
+        extra={
+            "request_id": request_id,
+            "products_count": len(products_forecast),
+        },
+    )
+
+    return response
 
 
 def forecast_product(
